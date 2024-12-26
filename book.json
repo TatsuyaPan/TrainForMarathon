@@ -1,0 +1,27 @@
+{
+  "title": "马拉松训练课表",
+  "author": "Tatsuya.Pan",
+  "description": "基于丹尼尔斯体系的训马拉松训练课表，训练思路比具体课表更重要。科学训练，顺利PB。",
+  "gitbook": "3.2.3",
+  "plugins": [
+    "-lunr",
+    "-search",
+    "search-plus",
+    "advanced-emoji",
+    "tbfed-pagefooter",
+    "copyright"
+  ],
+  "pluginsConfig": {
+    "tbfed-pagefooter": {
+      "copyright": "© Tatsuya.Pan",
+      "modify_label": "文件修订时间：",
+      "modify_format": "YYYY-MM-DD HH:mm:ss"
+    },
+    "copyright": {
+      "site": "https://snowdreams1006.github.io/gitbook-plugin-copyright",
+      "author": "Tatsuya.Pan",
+      "website": "Tatsuya.Pan",
+      "image": "https://snowdreams1006.github.io/snowdreams1006-wechat-open.png"
+    }
+  }
+}
