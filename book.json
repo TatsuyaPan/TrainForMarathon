@@ -3,7 +3,7 @@
   "author": "Tatsuya.Pan",
   "description": "基于丹尼尔斯体系的训马拉松训练课表，训练思路比具体课表更重要。科学训练，顺利PB。",
   "gitbook": "3.2.3",
-  "language":"zh-hans",
+  "language": "zh-hans",
   "plugins": [
     "-lunr",
     "-search",
@@ -12,7 +12,8 @@
     "tbfed-pagefooter",
     "copyright",
     "mermaid-gb3",
-    "splitter"
+    "splitter",
+    "insert-logo"
   ],
   "pluginsConfig": {
     "tbfed-pagefooter": {
@@ -24,7 +25,11 @@
       "author": "Tatsuya.Pan",
       "website": "https://tatsuyapan.github.io/TrainForMarathon/",
       "site": "https://tatsuyapan.github.io/TrainForMarathon/",
-      "image":"https://raw.githubusercontent.com/TatsuyaPan/image.github.io/refs/heads/main/common/nan_feng_coffee.png"
+      "image": "https://raw.githubusercontent.com/TatsuyaPan/image.github.io/refs/heads/main/common/marry_tatsuya.jpg"
+    },
+    "insert-logo": {
+      "url": "https://raw.githubusercontent.com/TatsuyaPan/image.github.io/refs/heads/main/common/nan_feng_coffee.png",
+      "style": "background: none; max-height: 100px; min-height: 30px; "
     }
   }
 }
