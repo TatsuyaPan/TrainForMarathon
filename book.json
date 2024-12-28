@@ -13,7 +13,8 @@
     "copyright",
     "mermaid-gb3",
     "splitter",
-    "insert-logo"
+    "insert-logo",
+    "back-to-top-button"
   ],
   "pluginsConfig": {
     "tbfed-pagefooter": {
