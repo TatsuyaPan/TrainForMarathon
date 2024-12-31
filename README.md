@@ -7,10 +7,8 @@
 
 最后祝大家科学训练，顺利PB。
 
-个人能力有限，内容中难免出现错漏，如果存在问题，欢迎批评指正。
+个人能力有限，内容中难免出现错漏，如果发现问题，欢迎拍砖指正。
 
 最新版本会发布在[https://tatsuyapan.github.io/TrainForMarathon/][发布地址]
-
-当前版本：2024.12.30.1
 
 [发布地址]:https://tatsuyapan.github.io/TrainForMarathon/

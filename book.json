@@ -1,7 +1,7 @@
 {
-  "title": "马拉松训练课表",
+  "title": "南风咖啡厅的马拉松训练计划",
   "author": "Tatsuya.Pan",
-  "description": "基于丹尼尔斯体系的训马拉松训练课表，训练思路比具体课表更重要。科学训练，顺利PB。",
+  "description": "基于丹尼尔斯体系的训马拉松训练计划，训练思路比具体课表更重要。科学训练，顺利PB。",
   "gitbook": "3.2.3",
   "language": "zh-hans",
   "plugins": [
@@ -31,5 +31,44 @@
       "url": "https://raw.githubusercontent.com/TatsuyaPan/image.github.io/refs/heads/main/common/nan_feng_coffee.png",
       "style": "background: none; max-height: 100px; min-height: 30px; "
     }
+  },
+  "pdf": {
+    "pageNumbers": true,
+    "fontSize": 16,
+    "paperSize": "a4",
+    "margin": {
+      "right": 36,
+      "left": 36,
+      "top": 36,
+      "bottom": 36
+    },
+    "headerTemplate": null,
+    "footerTemplate": null
+  },
+  "epub": {
+    "pageNumbers": true,
+    "fontSize": 16,
+    "paperSize": "a4",
+    "margin": {
+      "right": 36,
+      "left": 36,
+      "top": 36,
+      "bottom": 36
+    },
+    "headerTemplate": null,
+    "footerTemplate": null
+  },
+  "mobi": {
+    "pageNumbers": true,
+    "fontSize": 16,
+    "paperSize": "a4",
+    "margin": {
+      "right": 36,
+      "left": 36,
+      "top": 36,
+      "bottom": 36
+    },
+    "headerTemplate": null,
+    "footerTemplate": null
   }
 }
