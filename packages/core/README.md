@@ -104,6 +104,18 @@ npm run build     # 生成 dist；web 依赖该产物
 ```
 
 构建会先清空 `dist`（避免已删除模块的旧编译文件被一起发布），再根据 `content-manifest.json` 将现有 Markdown 生成到运行时包中，
-最后复制冻结规范。`src/content/generated.ts` 是生成文件，不应手工修改。
+最后复制冻结规范与仓库根 `LICENSE`。`src/content/generated.ts` 是生成文件，不应手工修改。
 新增 DSL 版本时需要同步的步骤见 `spec/dsl/README.md`；`packages/core/test/dsl-spec-conformance.test.ts` 会强制「冻结规范 ↔ 版本解析器」一一对应。
-`npm run check:spec` 可以单独检查产物里的规范有没有落后于仓库。
+`npm run check:spec` 可以单独检查产物里的规范与 `LICENSE` 有没有落后于仓库。
+
+## 发布
+
+包不标记 `private`，作用域包在 `publishConfig.access` 里声明为公开，可以直接发布：
+
+```bash
+cd packages/core
+npm login          # 首次发布前
+npm run build      # dist + 冻结规范 + LICENSE
+npm pack --dry-run # 确认打包内容（dist、spec、README、LICENSE）
+npm publish
+```

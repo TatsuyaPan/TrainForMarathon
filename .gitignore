@@ -9,6 +9,8 @@ node_modules
 dist
 # 包内冻结规范副本：构建时由 packages/core/scripts/sync-spec.mjs 从仓库根 spec/dsl/ 生成
 packages/core/spec
+# 包内授权声明副本：构建时由 packages/core/scripts/sync-license.mjs 从仓库根 LICENSE 生成
+packages/core/LICENSE
 .worktrees/
 
 # Book build output

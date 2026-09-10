@@ -1,7 +1,8 @@
 {
   "name": "@train-for-marathon/core",
   "version": "0.1.0",
-  "private": true,
+  "description": "TrainForMarathon 平台无关领域核心：课表实例化、配速分档、训练会话生命周期，以及按版本冻结的 Workout DSL。",
+  "license": "CC0-1.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -9,6 +10,7 @@
     "dist",
     "spec"
   ],
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -21,9 +23,29 @@
     "./spec/dsl/*": "./spec/dsl/*",
     "./package.json": "./package.json"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TatsuyaPan/TrainForMarathon.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/TatsuyaPan/TrainForMarathon#readme",
+  "bugs": {
+    "url": "https://github.com/TatsuyaPan/TrainForMarathon/issues"
+  },
+  "keywords": [
+    "running",
+    "marathon",
+    "training-plan",
+    "daniels",
+    "vdot",
+    "workout-dsl"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "build": "node scripts/clean-dist.mjs && node scripts/generate-content.mjs && tsc -p tsconfig.json && node scripts/sync-spec.mjs",
+    "build": "node scripts/clean-dist.mjs && node scripts/generate-content.mjs && tsc -p tsconfig.json && node scripts/sync-spec.mjs && node scripts/sync-license.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "check:spec": "node scripts/sync-spec.mjs --check"
+    "check:spec": "node scripts/sync-spec.mjs --check && node scripts/sync-license.mjs --check"
   }
 }
