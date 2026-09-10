@@ -82,6 +82,8 @@ with sync_playwright() as playwright:
     page = browser.new_page(viewport={"width": 1280, "height": 900})
     console_errors = []
     page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" else None)
+    # 保存/移除走 window.alert 与 window.confirm：统一接受，否则确认框会被自动取消
+    page.on("dialog", lambda dialog: dialog.accept())
     page.add_init_script(storage_script())
     page.goto(f"{BASE_URL}/#/training/day?date={DATE}")
     page.wait_for_load_state("networkidle")
@@ -159,6 +161,16 @@ with sync_playwright() as playwright:
     )
     assert extra_goal == "恢复慢跑", extra_goal
     expect(page.locator('[data-session-id="plan-e2e:day-e2e:2"]')).to_contain_text("恢复慢跑")
+
+    # 追加训练可以撤销：误添加不必留下「未进行」的假记录
+    page.get_by_test_id("show-add-session").click()
+    page.get_by_placeholder("例：晚间恢复跑").fill("误添加的训练")
+    page.get_by_test_id("add-session").click()
+    expect(page.locator('[data-session-id="plan-e2e:day-e2e:3"]')).to_contain_text("误添加的训练")
+    page.locator('[data-session-id="plan-e2e:day-e2e:3"]').get_by_role("button", name="移除").click()
+    expect(page.locator('[data-session-id="plan-e2e:day-e2e:3"]')).to_have_count(0)
+    removed = page.evaluate("localStorage.getItem('tfm:sessions:plan-e2e:day-e2e:3')")
+    assert removed is None, removed
 
     session_keys = page.evaluate("Object.keys(localStorage).filter((key) => key.startsWith('tfm:sessions:'))")
     assert len(session_keys) == 3, session_keys

@@ -93,10 +93,20 @@
               :theme="session.status === 'skipped' ? 'primary' : 'default'"
               @click="$router.push(recordRoute(session))"
             >{{ session.status === "done" ? "查看或编辑记录" : "改为已完成" }}</t-button>
+            <t-button
+              v-if="session.seq > 0"
+              :data-remove-session="session.id"
+              size="small"
+              theme="danger"
+              variant="text"
+              @click="remove(session)"
+            >移除</t-button>
           </div>
         </div>
       </t-card>
     </div>
+
+    <p v-if="actionError" class="inline-error" role="alert">{{ actionError }}</p>
 
     <t-card v-if="addVisible" :bordered="true" class="add-session-card">
       <div class="add-heading">
@@ -135,7 +145,7 @@
 <script setup>
 import { onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { addExtraSession, describeWorkout, intensityBarStyle, skipSession } from "@core";
+import { addExtraSession, describeWorkout, intensityBarStyle, removeSession, skipSession } from "@core";
 import { service } from "../app-context.js";
 import { useTrainingData } from "../composables/useTrainingData.js";
 
@@ -149,6 +159,7 @@ const sessions = ref([]);
 const addVisible = ref(false);
 const adding = ref(false);
 const addError = ref("");
+const actionError = ref("");
 const addForm = reactive({ label: "" });
 
 async function resolveDay() {
@@ -210,6 +221,19 @@ function statusText(status) {
 async function skip(session) {
   await skipSession(service, session);
   sessions.value = sortSessions(await refreshDaySessions(day.value.id));
+}
+
+/** 撤销追加训练（计划位由课表管理，核心会拒绝移除） */
+async function remove(session) {
+  const withRecord = session.status === "done" ? "，已记录的实际内容与日志会一并删除" : "";
+  if (!window.confirm(`移除「${session.label}」${withRecord}？此操作不可撤销。`)) return;
+  actionError.value = "";
+  try {
+    await removeSession(service, session);
+    sessions.value = sortSessions(await refreshDaySessions(day.value.id));
+  } catch (caught) {
+    actionError.value = caught instanceof Error ? caught.message : "移除失败";
+  }
 }
 
 function closeAdd() {

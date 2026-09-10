@@ -3,9 +3,10 @@ import { ref } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import TrainingDay from "../src/views/TrainingDay.vue";
 
-const { addExtraSession, push, service, skipSession } = vi.hoisted(() => ({
+const { addExtraSession, push, removeSession, service, skipSession } = vi.hoisted(() => ({
   addExtraSession: vi.fn(),
   push: vi.fn(),
+  removeSession: vi.fn(),
   service: {},
   skipSession: vi.fn(),
 }));
@@ -15,6 +16,7 @@ let trainingData;
 vi.mock("@core", async () => ({
   ...(await vi.importActual("@core")),
   addExtraSession,
+  removeSession,
   skipSession,
 }));
 vi.mock("../src/app-context.js", () => ({ service }));
@@ -95,7 +97,9 @@ describe("TrainingDay", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     addExtraSession.mockResolvedValue();
+    removeSession.mockResolvedValue();
     skipSession.mockResolvedValue();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
   });
 
   it("shows a day with zero sessions", async () => {
@@ -170,5 +174,30 @@ describe("TrainingDay", () => {
 
     expect(addExtraSession).toHaveBeenCalledWith(service, plan.id, day.id, { label: "晚间恢复跑" });
     expect(trainingData.refreshDaySessions).toHaveBeenCalledWith(day.id);
+  });
+
+  it("removes an added session only after confirmation", async () => {
+    const extra = session(1, "planned", { plannedWorkout: undefined });
+    const wrapper = await mountDay([session(0, "planned"), extra]);
+
+    // 计划位由课表管理，不提供移除入口
+    expect(wrapper.find(`[data-remove-session="${session(0, "planned").id}"]`).exists()).toBe(false);
+
+    await wrapper.get(`[data-remove-session="${extra.id}"]`).trigger("click");
+    await flushPromises();
+
+    expect(removeSession).toHaveBeenCalledWith(service, extra);
+    expect(trainingData.refreshDaySessions).toHaveBeenCalledWith(day.id);
+  });
+
+  it("keeps the session when removal is cancelled", async () => {
+    window.confirm.mockReturnValue(false);
+    const extra = session(1, "planned");
+    const wrapper = await mountDay([extra]);
+
+    await wrapper.get(`[data-remove-session="${extra.id}"]`).trigger("click");
+    await flushPromises();
+
+    expect(removeSession).not.toHaveBeenCalled();
   });
 });
