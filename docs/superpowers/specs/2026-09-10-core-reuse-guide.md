@@ -17,6 +17,20 @@
 core 只依赖 ECMAScript：不使用 `structuredClone`、`window`、`document`、`localStorage`、`fetch` 等浏览器/HTML 专有 API，
 这条约束由 `packages/core/test/boundary.test.ts` 强制执行。因此小程序侧只需要提供存储与界面。
 
+### 1.1 平台不需要自己复制领域对象
+
+core 的写入口（`ensureDaySessions`、`syncDayPlannedWorkout`、`addExtraSession`、`completeSession`、
+`setSessionPlannedWorkout`、`setDayWorkout`、课程库的创建/更新/复制）都会先做一次**防御性快照**：
+深拷贝再由核心归一化，然后才写入存储。所以：
+
+- 平台可以直接把界面里的响应式对象交给 core，不需要 `JSON.parse(JSON.stringify(...))`、也不需要
+  `structuredClone`；core 用 `packages/core/src/clone.ts` 的 `deepClone`（纯 ECMAScript）完成拷贝。
+- 复制完再改调用方自己的对象，不会影响已存数据——这条约定由 `packages/core/test/defensive-copy.test.ts` 守住。
+- 切换步骤类型后残留的 `undefined` 键由 `stripUndefinedFields` 统一清理，各端得到相同结构。
+
+Web 侧还有一条对应的界面层守卫（`web/test/domain-boundary.test.js`）：`web/src` 里出现
+JSON 往返深拷贝、`structuredClone`，或 `src/stores` 之外的 `localStorage`，测试就会失败。
+
 ## 2. 平台需要实现的适配层
 
 ### 2.1 `DataStore`（4 个方法，唯一的存储接口）

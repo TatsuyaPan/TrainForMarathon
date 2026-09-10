@@ -9,7 +9,7 @@ TrainForMarathon 的平台无关领域核心。运行时代码不依赖微信、
 | 模块 | 职责 |
 | --- | --- |
 | `src/domain.ts` | 领域模型：课表结构、计划实例、训练日、`TrainingSession`、进度记录 |
-| `src/clone.ts` | 平台无关深拷贝：领域数据的复制统一走这里 |
+| `src/clone.ts` | 平台无关深拷贝与空字段清理：`deepClone` / `stripUndefinedFields`，领域数据的复制统一走这里 |
 | `src/workflow.ts` | 训练编排：初始化、会话生命周期（计划 → 记录 → 结束）、打卡、课表调整、首页汇总 |
 | `src/session-record.ts` | 训练记录表单模型：初始化、校验、归一化成完成载荷 |
 | `src/dsl/` | Workout DSL：`v1.ts` 解析/序列化、`registry.ts` 版本分发、编辑与展示 |
@@ -43,6 +43,11 @@ await completeSession(service, sessions[0], toCompleteSessionInput(form));
 ```
 
 `ensureDaySessions` 只在训练日生成会话（休息日不生成），`addExtraSession` 用于同一天临时追加第二次训练。`session-record.ts` 的表单模型平台无关：Web 与小程序各自的页面只负责渲染。
+
+写入口（`addExtraSession`、`completeSession`、`setSessionPlannedWorkout`、`ensureDaySessions`、`syncDayPlannedWorkout`
+以及课程库的创建/更新/复制）都会先深拷贝再归一化，只保存属于自己的快照。因此平台可以把界面里的响应式对象
+直接传进来，不需要自己复制领域对象；写入之后再改调用方的对象也不会影响已存数据
+（`packages/core/test/defensive-copy.test.ts` 覆盖）。
 
 ## Workout DSL
 
