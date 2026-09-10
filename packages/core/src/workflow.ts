@@ -533,6 +533,22 @@ export async function addExtraSession(
   return session;
 }
 
+/**
+ * 移除训练：撤销一次追加的训练（例如误添加）。
+ *
+ * 计划位（seq 0）由课表的惰性生成机制负责，删掉后会立刻重新生成，
+ * 因此不允许移除；计划训练没做应该用 skipSession 标记为「未进行」。
+ */
+export async function removeSession(
+  service: TrainingDataService,
+  session: TrainingSession,
+): Promise<void> {
+  if (session.seq === 0) {
+    throw new Error("计划训练不能移除，请标记为「未进行」");
+  }
+  await service.deleteSession(session.id);
+}
+
 /** 会话 → 统计记录：done→completed，skipped→skipped；planned 不计入 */
 export function sessionsToProgress(sessions: readonly TrainingSession[]): ProgressRecord[] {
   const byDay = new Map<string, TrainingSession[]>();

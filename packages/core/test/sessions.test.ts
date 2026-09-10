@@ -6,6 +6,7 @@ import {
   createSetup,
   ensureDaySessions,
   getHomeSummary,
+  removeSession,
   sessionsToProgress,
   skipSession,
   syncDayPlannedWorkout,
@@ -189,6 +190,29 @@ describe("training session lifecycle", () => {
     const records = sessionsToProgress(await service.listSessions(plan.id, day.id));
     expect(records).toHaveLength(1);
     expect(records[0]).toMatchObject({ status: "partial", actualDistanceKm: 5 });
+  });
+
+  it("removes a mistakenly added session but protects the plan slot", async () => {
+    const service = new DefaultTrainingDataService(new MemoryStore());
+    const athlete = (await service.getAthleteProfile()) ?? {
+      id: "a", provider: "local", createdAt: "x", updatedAt: "x", schemaVersion: 1,
+    };
+    const plan = await createSetup(service, athlete, {
+      templateId: "20-week", raceDate: RACE_DATE, maxWeeklyKm: 80,
+      paceMode: "sixSecond", thresholdPaceSecondsPerKm: 240,
+    });
+    const day = plan.weeks[19].days.find((d) => !d.items.every((i) => i.type === "REST"));
+    const [planned] = await ensureDaySessions(service, plan, day);
+    const extra = await addExtraSession(service, plan.id, day.id, { label: "误添加的训练" });
+    expect((await service.listSessions(plan.id, day.id)).length).toBe(2);
+
+    await removeSession(service, extra);
+    const remaining = await service.listSessions(plan.id, day.id);
+    expect(remaining.map((entry) => entry.id)).toEqual([planned.id]);
+
+    // 计划位删除后会被惰性生成重新补回，因此拒绝移除，引导改用「未进行」
+    await expect(removeSession(service, planned)).rejects.toThrow(/未进行/);
+    expect((await service.listSessions(plan.id, day.id)).length).toBe(1);
   });
 
   it("home summary merges sessions (priority) with legacy progress", async () => {
