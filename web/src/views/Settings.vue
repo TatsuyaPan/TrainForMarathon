@@ -110,8 +110,10 @@ import {
   COMMON_RACE_DISTANCES,
   createSetup,
   formatPace,
+  formatRaceTime,
   getSetupState,
   listSetupTemplates,
+  parseRaceTime,
   resetSetup,
 } from "@core";
 import { getAthlete, invalidateAthlete, service } from "../app-context.js";
@@ -152,14 +154,6 @@ function snapToSunday(isoDate) {
   return date.toISOString().slice(0, 10);
 }
 
-function parseHms(text) {
-  const parts = String(text).trim().split(":").map(Number);
-  if (parts.some((part) => !Number.isFinite(part) || part < 0)) return NaN;
-  let seconds = 0;
-  for (const part of parts) seconds = seconds * 60 + part;
-  return seconds;
-}
-
 function onDistanceChange(result) {
   const d = COMMON_RACE_DISTANCES.find((item) => item.key === result.distanceKey);
   if (d) result.distanceM = d.meters;
@@ -182,7 +176,7 @@ async function save() {
       if (paceMode.value === "vdot") {
         const parsed = [];
         for (const result of results.value) {
-          const timeSeconds = parseHms(result.timeText);
+          const timeSeconds = parseRaceTime(result.timeText);
           if (!Number.isFinite(timeSeconds) || timeSeconds <= 0) {
             window.alert("请填写有效的成绩时间（如 45:00 或 1:24:30）");
             return;
@@ -236,19 +230,13 @@ onMounted(async () => {
     results.value = a.raceResults.map((r) => ({
       distanceKey: COMMON_RACE_DISTANCES.find((d) => Math.abs(d.meters - r.distanceM) < 1)?.key ?? "10k",
       distanceM: r.distanceM,
-      timeText: fmtHms(r.timeSeconds),
+      timeText: formatRaceTime(r.timeSeconds),
       date: r.date ?? today,
       note: r.label ?? "",
     }));
   }
 });
 
-function fmtHms(totalSeconds) {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = Math.round(totalSeconds % 60);
-  return hours > 0 ? `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}` : `${minutes}:${String(seconds).padStart(2, "0")}`;
-}
 </script>
 
 <style scoped>

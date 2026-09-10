@@ -10,7 +10,7 @@
     <p class="muted">新建课表前需要先填写能力。去自由配速计算器推算并保存，或直接设置阈值配速。</p>
     <div class="btn-row">
       <t-button theme="primary" @click="$router.push('/paces')">去自由配速计算器</t-button>
-      <t-button @click="promptSetSix">直接设置阈值配速</t-button>
+      <t-button data-testid="open-six" @click="openSixDialog">直接设置阈值配速</t-button>
     </div>
   </t-card>
 
@@ -19,28 +19,27 @@
       <t-typography-title level="h5">当前能力</t-typography-title>
       <div class="kv">
         <span class="muted">基准模式</span>
-        <span>{{ fitness.mode === "vdot" ? `VDOT ${fitness.vdot.toFixed(1)}${fitness.isBeginner ? "（新手表）" : ""}` : "6 秒规则（阈值配速）" }}</span>
+        <span data-testid="fitness-mode">{{ modeLabel }}</span>
       </div>
-      <template v-if="fitness.mode === 'sixSecond'">
-        <div class="kv"><span class="muted">阈值配速</span><span>{{ formatPace(fitness.thresholdPaceSecondsPerKm) }}</span></div>
-      </template>
-      <template v-else>
-        <div class="kv">
-          <span class="muted">成绩依据</span>
-          <span>{{ fitness.raceResults.map((r) => `${labelFor(r.distanceM)} ${fmtHms(r.timeSeconds)}${r.label ? `（${r.label}）` : ""}${r.date ? ` · ${r.date}` : ""}`).join("；") }}</span>
-        </div>
-      </template>
+      <div v-if="fitness.mode === 'sixSecond'" class="kv">
+        <span class="muted">阈值配速</span>
+        <span>{{ formatPace(fitness.thresholdPaceSecondsPerKm) }}</span>
+      </div>
+      <div v-else class="kv">
+        <span class="muted">成绩依据</span>
+        <span>{{ raceSummary }}</span>
+      </div>
       <div class="btn-row">
         <t-button theme="primary" @click="$router.push('/paces')">自由配速计算器（推算并导入）</t-button>
-        <t-button v-if="fitness.mode === 'sixSecond'" @click="promptSetSix">调整阈值配速</t-button>
-        <t-button theme="danger" variant="outline" @click="clearFitness">清除能力</t-button>
+        <t-button v-if="fitness.mode === 'sixSecond'" data-testid="open-six" @click="openSixDialog">调整阈值配速</t-button>
+        <t-button theme="danger" variant="outline" data-testid="clear-fitness" @click="clearFitness">清除能力</t-button>
       </div>
     </t-card>
 
     <t-card :bordered="true" style="margin-top: 12px">
       <t-typography-title level="h5">当前各档配速</t-typography-title>
-      <div v-for="row in paceRows" :key="row.key" class="pace-row">
-        <span class="key" :style="{ background: colorOf(row.key) }">{{ row.key }}</span>
+      <div v-for="row in paceRows" :key="row.zone" class="pace-row" data-testid="pace-row">
+        <span class="key" :style="{ background: colorOf(row.zone) }">{{ row.zone }}</span>
         <div>
           <div><strong>{{ row.name }}</strong> · {{ row.value }}</div>
           <div class="muted">{{ row.note }}</div>
@@ -48,6 +47,29 @@
       </div>
     </t-card>
   </template>
+
+  <t-dialog v-model:visible="sixVisible" header="设置阈值配速" :footer="false" width="420px">
+    <div class="six-dialog" data-testid="six-dialog">
+      <p class="muted">阈值配速 ≈ 全力跑约 1 小时的配速（≈ 10k PB / T 配速），是 6 秒规则的基准。</p>
+      <div class="six-inputs">
+        <t-input-number data-testid="six-min" v-model="sixMin" :min="2" :max="9" @change="updatePreview" />
+        <span class="muted">分</span>
+        <t-input-number data-testid="six-sec" v-model="sixSec" :min="0" :max="59" @change="updatePreview" />
+        <span class="muted">秒 / 公里</span>
+      </div>
+      <p v-if="sixError" class="error" data-testid="six-error">{{ sixError }}</p>
+      <div v-else class="six-preview">
+        <div v-for="row in sixPreview" :key="row.zone" class="preview-row">
+          <span class="key small" :style="{ background: colorOf(row.zone) }">{{ row.zone }}</span>
+          <span><strong>{{ row.name }}</strong> · {{ row.value }}</span>
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <t-button variant="outline" @click="sixVisible = false">取消</t-button>
+        <t-button theme="primary" data-testid="six-save" @click="saveSix">保存为我的能力</t-button>
+      </div>
+    </div>
+  </t-dialog>
 
   <p class="muted source-note">
     数据来源：6 秒规则（书 §1）与丹尼尔斯 VDOT 表（《丹尼尔斯经典跑步训练法》· Jack Daniels）；
@@ -60,9 +82,12 @@
 import { computed, onMounted, ref } from "vue";
 import {
   INTENSITY_COLORS,
-  calculateSixSecondPaces,
+  athleteFitness,
+  fitnessModeLabel,
+  fitnessPaceRows,
   formatPace,
-  pacesFromVdot,
+  raceResultsSummary,
+  sixSecondPaceRows,
 } from "@core";
 import {
   clearAthleteFitness,
@@ -72,66 +97,54 @@ import {
 } from "../app-context.js";
 
 const athlete = ref(null);
-const fitness = computed(() => {
-  const a = athlete.value;
-  if (!a) return null;
-  if (a.vdot) return { mode: "vdot", vdot: a.vdot, raceResults: a.raceResults ?? [], isBeginner: a.isBeginner };
-  if (a.thresholdPaceSecondsPerKm) return { mode: "sixSecond", thresholdPaceSecondsPerKm: a.thresholdPaceSecondsPerKm };
-  return null;
-});
+// 能力摘要与档位文案全部来自 core：同一份能力在 web / 小程序里说法一致
+const fitness = computed(() => athleteFitness(athlete.value));
+const modeLabel = computed(() => fitnessModeLabel(fitness.value));
+const raceSummary = computed(() => raceResultsSummary(fitness.value?.raceResults));
+const paceRows = computed(() => fitnessPaceRows(fitness.value));
 
-const paceRows = computed(() => {
-  const f = fitness.value;
-  if (!f) return [];
-  if (f.mode === "vdot") {
-    const paces = pacesFromVdot(f.vdot);
-    const range = (item) => `${formatPace(item.slow)} – ${formatPace(item.fast)}`;
-    return [
-      { key: "E", name: "轻松跑", value: range(paces.E), note: "VDOT 62-72%" },
-      { key: "M", name: "马拉松配速", value: range(paces.M), note: "马拉松均配反推" },
-      { key: "T", name: "阈值跑", value: range(paces.T), note: "VDOT 88.4%" },
-      { key: "I", name: "最大摄氧量跑", value: range(paces.I), note: "VDOT 97.7%" },
-      { key: "R", name: "重复跑", value: range(paces.R), note: "VDOT 105.8%" },
-    ];
-  }
-  const paces = calculateSixSecondPaces(f.thresholdPaceSecondsPerKm);
-  const range = (item) => (item ? `${formatPace(item.slow)} – ${formatPace(item.fast)}` : "—");
-  return [
-    { key: "E", name: "轻松跑", value: "按心率（≈阈值-40s）", note: "心率 65-78% 或 MAF180" },
-    { key: "M", name: "马拉松配速", value: `≈ ${formatPace(f.thresholdPaceSecondsPerKm - 15)}（估算）`, note: "低于阈值约 15 秒" },
-    { key: "T", name: "阈值跑", value: range(paces.T), note: "基准 = 阈值配速" },
-    { key: "I", name: "最大摄氧量跑", value: range(paces.I), note: "6 秒规则" },
-    { key: "R", name: "重复跑", value: range(paces.R), note: "6 秒规则" },
-  ];
-});
+const sixVisible = ref(false);
+const sixMin = ref(4);
+const sixSec = ref(0);
+const sixError = ref("");
+const sixPreview = ref([]);
 
 function colorOf(zone) {
   return INTENSITY_COLORS[zone] ?? "#9aa2ab";
 }
 
-function labelFor(meters) {
-  const found = [1500, 3000, 5000, 8000, 10000, 21097.5, 42195].find((d) => Math.abs(d - meters) < 1);
-  const labels = { 1500: "1500m", 3000: "3000m", 5000: "5k", 8000: "8k", 10000: "10k", 21097.5: "半马", 42195: "全马" };
-  return labels[found] ?? `${meters}m`;
-}
-
-function fmtHms(totalSeconds) {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = Math.round(totalSeconds % 60);
-  return hours > 0 ? `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}` : `${minutes}:${String(seconds).padStart(2, "0")}`;
-}
-
-function promptSetSix() {
+function openSixDialog() {
   const current = fitness.value?.mode === "sixSecond" ? fitness.value.thresholdPaceSecondsPerKm : 240;
-  const input = window.prompt("阈值配速（秒/公里，如 240 = 4:00/km）：", String(current));
-  if (input === null) return;
-  const value = Number(input);
-  if (!Number.isFinite(value) || value <= 0) { window.alert("请输入有效秒数"); return; }
-  saveAthleteFitness({ mode: "sixSecond", thresholdPaceSecondsPerKm: Math.round(value) })
-    .then(() => reload())
-    .then(fitnessSavedHint)
-    .then((hint) => { if (hint) window.alert(hint.replace(/^；/, "")); });
+  sixMin.value = Math.floor(current / 60);
+  sixSec.value = current % 60;
+  updatePreview();
+  sixVisible.value = true;
+}
+
+/** 对话框里边改边预览档位表：保存前就能看到会变成什么配速 */
+function updatePreview() {
+  const threshold = sixMin.value * 60 + sixSec.value;
+  try {
+    sixPreview.value = sixSecondPaceRows(threshold);
+    sixError.value = "";
+  } catch {
+    sixPreview.value = [];
+    sixError.value = `阈值配速需大于 45 秒/公里（当前 ${formatPace(threshold)}）`;
+  }
+}
+
+async function saveSix() {
+  updatePreview();
+  if (sixError.value) return;
+  try {
+    await saveAthleteFitness({ mode: "sixSecond", thresholdPaceSecondsPerKm: sixMin.value * 60 + sixSec.value });
+    sixVisible.value = false;
+    await reload();
+    const hint = await fitnessSavedHint();
+    if (hint) window.alert(hint.replace(/^；/, ""));
+  } catch (error) {
+    sixError.value = error instanceof Error ? error.message : "保存失败";
+  }
 }
 
 async function clearFitness() {
@@ -156,5 +169,13 @@ onMounted(reload);
   width: 38px; height: 38px; border-radius: 10px; color: #fff;
   font-weight: 700; flex-shrink: 0;
 }
+.key.small { width: 26px; height: 26px; border-radius: 7px; font-size: 12px; }
+.six-dialog { display: grid; gap: 10px; }
+.six-inputs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.six-inputs :deep(.t-input-number) { width: 96px; }
+.six-preview { display: grid; gap: 6px; }
+.preview-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.error { color: #d54941; margin: 0; font-size: 13px; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 .source-note { margin-top: 16px; }
 </style>

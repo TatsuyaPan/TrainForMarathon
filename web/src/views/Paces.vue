@@ -18,8 +18,8 @@
         <t-button theme="primary" @click="calcSix">计算配速</t-button>
       </t-card>
       <div v-if="sixResult" class="result-block">
-        <t-card v-for="row in sixResult" :key="row.key" :bordered="true" class="pace-row">
-          <span class="key" :style="{ background: colorOf(row.key) }">{{ row.key }}</span>
+        <t-card v-for="row in sixResult" :key="row.zone" :bordered="true" class="pace-row">
+          <span class="key" :style="{ background: colorOf(row.zone) }">{{ row.zone }}</span>
           <div>
             <div><strong>{{ row.name }}</strong> · {{ row.value }}</div>
             <div class="muted">{{ row.note }}</div>
@@ -69,11 +69,11 @@
               <strong>{{ cell.value }}</strong>
             </div>
           </div>
-          <p class="muted">M 马拉松预估总时间：{{ fmtHms(beginnerRow.marathonTotalSeconds) }}</p>
+          <p class="muted">M 马拉松预估总时间：{{ formatRaceTime(beginnerRow.marathonTotalSeconds) }}</p>
         </t-card>
 
-        <t-card v-for="row in vdotPaceRows" :key="row.key" :bordered="true" class="pace-row">
-          <span class="key" :style="{ background: colorOf(row.key) }">{{ row.key }}</span>
+        <t-card v-for="row in vdotRows" :key="row.zone" :bordered="true" class="pace-row">
+          <span class="key" :style="{ background: colorOf(row.zone) }">{{ row.zone }}</span>
           <div>
             <div><strong>{{ row.name }}</strong> · {{ row.value }}</div>
             <div class="muted">{{ row.note }}</div>
@@ -97,10 +97,12 @@ import {
   COMMON_RACE_DISTANCES,
   INTENSITY_COLORS,
   assessFromResults,
-  calculateSixSecondPaces,
-  formatPace,
+  formatRaceTime,
   lookupBeginnerRow,
+  parseRaceTime,
+  sixSecondPaceRows,
   vdotFromRace,
+  vdotPaceRows,
 } from "@core";
 import { fitnessSavedHint, saveAthleteFitness } from "../app-context.js";
 
@@ -111,7 +113,7 @@ const sixSec = ref(0);
 const sixResult = ref(null);
 const vdotResult = ref(null);
 const beginnerRow = ref(null);
-const vdotPaceRows = ref([]);
+const vdotRows = ref([]);
 const selectedLabel = ref("");
 const beginnerCells = ref([]);
 
@@ -121,25 +123,6 @@ const results = ref([
 
 function colorOf(zone) {
   return INTENSITY_COLORS[zone] ?? "#9aa2ab";
-}
-
-function parseHms(text) {
-  const parts = String(text).trim().split(":").map(Number);
-  if (parts.some((part) => !Number.isFinite(part) || part < 0)) return NaN;
-  let seconds = 0;
-  for (const part of parts) seconds = seconds * 60 + part;
-  return seconds;
-}
-
-function fmtHms(totalSeconds) {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = Math.round(totalSeconds % 60);
-  return hours > 0 ? `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}` : `${minutes}:${String(seconds).padStart(2, "0")}`;
-}
-
-function range(item) {
-  return item ? `${formatPace(item.slow)} – ${formatPace(item.fast)}` : "—";
 }
 
 function onDistanceChange(result) {
@@ -154,14 +137,11 @@ function addResult() {
 function calcSix() {
   const threshold = sixMin.value * 60 + sixSec.value;
   if (!(threshold > 0)) { window.alert("请输入有效配速"); return; }
-  const paces = calculateSixSecondPaces(threshold);
-  sixResult.value = [
-    { key: "E", name: "轻松跑", value: "按心率（≈阈值-40s）", note: "心率 65-78% 或 MAF180" },
-    { key: "M", name: "马拉松配速", value: `≈ ${formatPace(threshold - 15)}（估算）`, note: "低于阈值约 15 秒" },
-    { key: "T", name: "阈值跑", value: range(paces.T), note: "基准 = 10k PB 配速" },
-    { key: "I", name: "最大摄氧量跑", value: range(paces.I), note: "跑休比 1:0.5~1" },
-    { key: "R", name: "重复跑", value: range(paces.R), note: "跑休比 1:2" },
-  ];
+  try {
+    sixResult.value = sixSecondPaceRows(threshold);
+  } catch (error) {
+    window.alert(error instanceof Error ? error.message : "配速无效");
+  }
 }
 
 async function saveSix() {
@@ -177,7 +157,7 @@ async function saveSix() {
 function calcVdot() {
   const parsed = [];
   for (const result of results.value) {
-    const timeSeconds = parseHms(result.timeText);
+    const timeSeconds = parseRaceTime(result.timeText);
     if (!Number.isFinite(timeSeconds) || timeSeconds <= 0) {
       window.alert("请填写有效的成绩时间（如 45:00 或 1:24:30）");
       return;
@@ -196,23 +176,17 @@ function calcVdot() {
     if (beginnerRow.value) {
       const row = beginnerRow.value;
       beginnerCells.value = [
-        { label: "R 200m", value: fmtHms(row.r200Seconds) },
-        ...(row.r300Seconds ? [{ label: "R 300m", value: fmtHms(row.r300Seconds) }] : []),
-        { label: "I 200m", value: fmtHms(row.i200Seconds) },
-        { label: "I 400m", value: fmtHms(row.i400Seconds) },
-        { label: "T 400m", value: fmtHms(row.t400Seconds) },
-        { label: "T 1km", value: fmtHms(row.t1000Seconds) },
-        { label: "T 1.6km", value: fmtHms(row.t1600Seconds) },
-        { label: "M 配速", value: `${fmtHms(row.mPacePerKmSeconds)}/km` },
+        { label: "R 200m", value: formatRaceTime(row.r200Seconds) },
+        ...(row.r300Seconds ? [{ label: "R 300m", value: formatRaceTime(row.r300Seconds) }] : []),
+        { label: "I 200m", value: formatRaceTime(row.i200Seconds) },
+        { label: "I 400m", value: formatRaceTime(row.i400Seconds) },
+        { label: "T 400m", value: formatRaceTime(row.t400Seconds) },
+        { label: "T 1km", value: formatRaceTime(row.t1000Seconds) },
+        { label: "T 1.6km", value: formatRaceTime(row.t1600Seconds) },
+        { label: "M 配速", value: `${formatRaceTime(row.mPacePerKmSeconds)}/km` },
       ];
     }
-    vdotPaceRows.value = [
-      { key: "E", name: "轻松跑", value: range(assessment.paces.E), note: "VDOT 62-72%" },
-      { key: "M", name: "马拉松配速", value: range(assessment.paces.M), note: "按马拉松预估时间反推" },
-      { key: "T", name: "阈值跑", value: range(assessment.paces.T), note: "VDOT 88.4%" },
-      { key: "I", name: "最大摄氧量跑", value: range(assessment.paces.I), note: "VDOT 97.7%" },
-      { key: "R", name: "重复跑", value: range(assessment.paces.R), note: "VDOT 105.8%" },
-    ];
+    vdotRows.value = vdotPaceRows(assessment.vdot);
   } catch (e) {
     window.alert(e.message);
   }
@@ -221,7 +195,7 @@ function calcVdot() {
 async function saveVdot() {
   const parsed = [];
   for (const result of results.value) {
-    const timeSeconds = parseHms(result.timeText);
+    const timeSeconds = parseRaceTime(result.timeText);
     if (Number.isFinite(timeSeconds) && timeSeconds > 0) {
       parsed.push({ distanceM: result.distanceM, timeSeconds, label: result.note || undefined, date: result.date });
     }

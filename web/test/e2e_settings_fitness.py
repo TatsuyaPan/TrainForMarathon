@@ -167,6 +167,30 @@ with sync_playwright() as playwright:
     assert not cleared.get("vdot"), cleared
     shot(page, "fitness-cleared")
 
+    # 5b) 直接在能力页设置阈值配速：对话框内先校验、再预览档位，最后保存
+    page.get_by_test_id("open-six").click()
+    six_dialog = page.get_by_test_id("six-dialog")
+    expect(six_dialog).to_be_visible()
+    expect(six_dialog).to_contain_text("4:00/km")
+
+    # 非法值（0 分 0 秒）不开后门：给出提示且不保存
+    page.get_by_test_id("six-min").locator("input").fill("0")
+    page.get_by_test_id("six-sec").locator("input").fill("0")
+    page.get_by_test_id("six-sec").locator("input").press("Tab")
+    expect(six_dialog.get_by_test_id("six-error")).to_be_visible()
+
+    page.get_by_test_id("six-min").locator("input").fill("4")
+    page.get_by_test_id("six-sec").locator("input").fill("30")
+    page.get_by_test_id("six-sec").locator("input").press("Tab")
+    expect(six_dialog.get_by_test_id("six-error")).to_have_count(0)
+    expect(six_dialog).to_contain_text("4:30/km")
+    shot(page, "fitness-six-dialog")
+    page.get_by_test_id("six-save").click()
+
+    expect(page.get_by_test_id("fitness-mode")).to_have_text("6 秒规则（阈值配速）")
+    saved_six = page.evaluate("JSON.parse(localStorage.getItem('tfm:athletes:current')).thresholdPaceSecondsPerKm")
+    assert saved_six == 270, saved_six
+
     # 6) 清空训练数据：配置、课表、会话一并清空，自定义课程库保留
     page.goto(f"{BASE_URL}/#/settings")
     page.wait_for_load_state("networkidle")
