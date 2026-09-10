@@ -3,7 +3,7 @@
  * 与 DataStore 实现解耦：微信（云数据库）/ web（localStorage）/ 测试（内存）共用同一套编排。
  */
 import type { AthleteProfile } from "./athlete.js";
-import { createAthlete } from "./athlete.js";
+import { createAthlete, createLocalAthleteId } from "./athlete.js";
 import type {
   Load,
   PlanDay,
@@ -928,14 +928,7 @@ export async function resetSetup(service: TrainingDataService): Promise<void> {
 export async function ensureAthlete(service: TrainingDataService): Promise<AthleteProfile> {
   const existing = await service.getAthleteProfile();
   if (existing) return existing;
-  const athlete = createAthlete({ id: createLocalId(), provider: "local" });
+  const athlete = createAthlete({ id: createLocalAthleteId(), provider: "local" });
   await service.saveAthleteProfile(athlete);
   return athlete;
-}
-
-function createLocalId(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  return `athlete-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
