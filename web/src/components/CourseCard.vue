@@ -23,7 +23,7 @@
 
     <div class="card-actions">
       <t-button v-if="course.origin === 'builtin'" data-testid="copy-course" size="small" theme="primary" @click="$emit('copy', course)">
-        复制使用
+        复制到我的课程
       </t-button>
       <template v-else>
         <t-button data-testid="edit-course" size="small" theme="primary" @click="$emit('edit', course)">编辑</t-button>

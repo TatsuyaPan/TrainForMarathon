@@ -108,6 +108,13 @@ describe("TrainingDay", () => {
     expect(wrapper.findAll("[data-session-id]")).toHaveLength(0);
   });
 
+  it("annotates the condensed day label with a plain training type", async () => {
+    const wrapper = await mountDay([]);
+    // 计划标题是紧凑记号（T、R…），标题旁补中文类型便于阅读
+    expect(wrapper.get(".day-hero h1").text()).toContain("阈值训练");
+    expect(wrapper.get(".day-hero h1").text()).toContain("阈值跑");
+  });
+
   it("orders many sessions and shows lifecycle-specific actions", async () => {
     const wrapper = await mountDay([session(2, "skipped"), session(0, "planned"), session(1, "done")]);
     const cards = wrapper.findAll("[data-session-id]");

@@ -4,7 +4,10 @@
     <header class="day-hero">
       <div>
         <div class="day-kicker">{{ date }} · WEEK {{ week?.week }}</div>
-        <h1>{{ day.label }}</h1>
+        <h1>
+          {{ day.label }}
+          <t-tag v-if="dayTypeText" variant="light">{{ dayTypeText }}</t-tag>
+        </h1>
         <p>当天共有 {{ sessions.length }} 次训练</p>
       </div>
       <div class="hero-actions">
@@ -143,9 +146,16 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { addExtraSession, describeWorkout, intensityBarStyle, removeSession, skipSession } from "@core";
+import {
+  TRAINING_TYPE_LABELS,
+  addExtraSession,
+  describeWorkout,
+  intensityBarStyle,
+  removeSession,
+  skipSession,
+} from "@core";
 import { service } from "../app-context.js";
 import { useTrainingData } from "../composables/useTrainingData.js";
 
@@ -161,6 +171,15 @@ const adding = ref(false);
 const addError = ref("");
 const actionError = ref("");
 const addForm = reactive({ label: "" });
+
+/** 计划里的日期标题是紧凑记号（R、T + R、跑休…），补一份中文类型便于阅读 */
+const dayTypeText = computed(() => {
+  const types = (day.value?.items ?? [])
+    .map((item) => TRAINING_TYPE_LABELS[item.type])
+    .filter(Boolean);
+  const text = [...new Set(types)].join(" + ");
+  return text && text !== day.value?.label ? text : "";
+});
 
 async function resolveDay() {
   day.value = null;
