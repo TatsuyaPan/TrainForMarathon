@@ -10,6 +10,7 @@
       <div class="hero-actions">
         <t-button size="small" variant="outline" @click="$router.push('/training')">训练周期</t-button>
         <t-button v-if="week" size="small" variant="outline" @click="$router.push({ path: '/training/week', query: { date } })">本周</t-button>
+        <t-button data-testid="edit-day-workout" size="small" variant="outline" @click="editDayWorkout">编辑课表</t-button>
         <t-button data-testid="show-add-session" size="small" theme="primary" @click="addVisible = true">+ 添加训练</t-button>
       </div>
     </header>
@@ -65,6 +66,13 @@
 
           <div class="session-actions">
             <template v-if="session.status === 'planned'">
+              <t-button
+                v-if="session.seq > 0"
+                :data-plan-session="session.id"
+                size="small"
+                variant="outline"
+                @click="editSessionWorkout(session)"
+              >设置计划内容</t-button>
               <t-button
                 :data-record-session="session.id"
                 size="small"
@@ -126,11 +134,13 @@
 
 <script setup>
 import { onMounted, reactive, ref, watch } from "vue";
+import { useRouter } from "vue-router";
 import { addExtraSession, describeWorkout, intensityBarStyle, skipSession } from "@core";
 import { service } from "../app-context.js";
 import { useTrainingData } from "../composables/useTrainingData.js";
 
 const props = defineProps({ date: { type: String, required: true } });
+const router = useRouter();
 const { loading, plan, load, loadDaySessions, refreshDaySessions } = useTrainingData();
 
 const day = ref(null);
@@ -166,6 +176,19 @@ function recordRoute(session) {
     path: "/training/session",
     query: { plan: plan.value.id, session: session.id, date: props.date },
   };
+}
+
+/** 编辑当天课表（写入计划本身；未结束的计划训练会跟随更新） */
+function editDayWorkout() {
+  router.push({ path: "/edit", query: { plan: plan.value.id, day: day.value.id } });
+}
+
+/** 为追加训练补充结构化计划内容（只写这一次训练） */
+function editSessionWorkout(session) {
+  router.push({
+    path: "/edit",
+    query: { plan: plan.value.id, day: day.value.id, session: session.id },
+  });
 }
 
 function describeWorkoutLines(workout) {

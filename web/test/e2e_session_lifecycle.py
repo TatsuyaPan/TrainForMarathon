@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 from playwright.sync_api import expect, sync_playwright
@@ -116,9 +117,11 @@ with sync_playwright() as playwright:
     page.wait_for_load_state("networkidle")
     expect(page.locator('.period-cell.partial .cal-status')).to_have_text("部分完成")
 
-    # 训练日课表编辑器：复用课程库结构编辑器，可从课程库选课并保存
-    page.goto(f"{BASE_URL}/#/edit?plan=plan-e2e&day=day-e2e")
+    # 训练日课表编辑器：从训练日入口进入，复用课程库结构编辑器
+    page.goto(f"{BASE_URL}/#/training/day?date={DATE}")
     page.wait_for_load_state("networkidle")
+    page.get_by_test_id("edit-day-workout").click()
+    expect(page).to_have_url(f"{BASE_URL}/#/edit?plan=plan-e2e&day=day-e2e")
     expect(page.get_by_test_id("day-goal")).to_have_value("有氧耐力")
     expect(page.get_by_test_id("workout-editor")).to_be_visible()
     page.get_by_test_id("toggle-library").click()
@@ -131,9 +134,34 @@ with sync_playwright() as playwright:
         ".find((phase) => phase.role === 'main').segments[0].kind"
     )
     assert saved_dsl == "repeat", saved_dsl
+    # 改课表只影响未结束的训练：已跳过的计划位保留当时快照
+    frozen_kind = page.evaluate(
+        "JSON.parse(localStorage.getItem('tfm:sessions:plan-e2e:day-e2e:0')).plannedWorkout"
+        ".phases[0].segments[0].kind"
+    )
+    assert frozen_kind == "run", frozen_kind
+
+    # 追加训练可以在同一次交互里补齐结构化计划内容（只写这一次训练）
+    page.get_by_test_id("show-add-session").click()
+    page.get_by_placeholder("例：晚间恢复跑").fill("晚间放松跑")
+    page.get_by_test_id("add-session").click()
+    expect(page.locator('[data-session-id="plan-e2e:day-e2e:2"]')).to_contain_text("晚间放松跑")
+    page.locator('[data-session-id="plan-e2e:day-e2e:2"]').get_by_role("button", name="设置计划内容").click()
+    # 会话 id 含冒号：不同 router 版本对 : 的转义不一致，这里只约束语义部分
+    expect(page).to_have_url(re.compile(r"#/edit\?plan=plan-e2e&day=day-e2e&session=plan-e2e(%3A|:)day-e2e(%3A|:)2"))
+    expect(page.get_by_role("heading", name=re.compile("晚间放松跑"))).to_be_visible()
+    expect(page.get_by_text("单独这次训练")).to_be_visible()
+    page.get_by_test_id("day-goal").fill("恢复慢跑")
+    page.get_by_test_id("save-day").click()
+    expect(page).to_have_url(f"{BASE_URL}/#/training/day?date={DATE}")
+    extra_goal = page.evaluate(
+        "JSON.parse(localStorage.getItem('tfm:sessions:plan-e2e:day-e2e:2')).plannedWorkout.goal"
+    )
+    assert extra_goal == "恢复慢跑", extra_goal
+    expect(page.locator('[data-session-id="plan-e2e:day-e2e:2"]')).to_contain_text("恢复慢跑")
 
     session_keys = page.evaluate("Object.keys(localStorage).filter((key) => key.startsWith('tfm:sessions:'))")
-    assert len(session_keys) == 2, session_keys
+    assert len(session_keys) == 3, session_keys
     assert not console_errors, console_errors
 
     output = Path(__file__).resolve().parent.parent / "test-results" / "session-lifecycle.png"

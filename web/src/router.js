@@ -31,7 +31,15 @@ export const router = createRouter({
     { path: "/paces", component: Paces },
     { path: "/fitness", component: Fitness },
     { path: "/settings", component: Settings },
-    { path: "/edit", component: EditWorkout, props: (route) => ({ planId: route.query.plan, dayId: route.query.day }) },
+    {
+      path: "/edit",
+      component: EditWorkout,
+      props: (route) => ({
+        planId: route.query.plan,
+        dayId: route.query.day,
+        sessionId: route.query.session ?? "",
+      }),
+    },
     { path: "/", redirect: "/training" },
   ],
 });

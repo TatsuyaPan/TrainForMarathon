@@ -19,6 +19,7 @@ vi.mock("@core", async () => ({
 }));
 vi.mock("../src/app-context.js", () => ({ service }));
 vi.mock("../src/composables/useTrainingData.js", () => ({ useTrainingData: () => trainingData }));
+vi.mock("vue-router", () => ({ useRouter: () => ({ push }) }));
 
 const dayWorkout = {
   dslVersion: 1,
@@ -125,6 +126,28 @@ describe("TrainingDay", () => {
     expect(push).toHaveBeenCalledWith({
       path: "/training/session",
       query: { plan: "plan-1", session: current.id, date: day.date },
+    });
+  });
+
+  it("opens the day workout editor from the hero", async () => {
+    const wrapper = await mountDay([session(0, "planned")]);
+    await wrapper.get('[data-testid="edit-day-workout"]').trigger("click");
+
+    expect(push).toHaveBeenCalledWith({ path: "/edit", query: { plan: "plan-1", day: "day-1" } });
+  });
+
+  it("opens a per-session plan editor only for added sessions", async () => {
+    const planned = session(0, "planned");
+    const extra = session(1, "planned", { plannedWorkout: undefined });
+    const wrapper = await mountDay([planned, extra]);
+
+    // 计划位（seq 0）由「编辑课表」统一负责，不提供逐次入口
+    expect(wrapper.find(`[data-plan-session="${planned.id}"]`).exists()).toBe(false);
+    await wrapper.get(`[data-plan-session="${extra.id}"]`).trigger("click");
+
+    expect(push).toHaveBeenCalledWith({
+      path: "/edit",
+      query: { plan: "plan-1", day: "day-1", session: extra.id },
     });
   });
 

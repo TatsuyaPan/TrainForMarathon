@@ -3,8 +3,12 @@
   <template v-else-if="workout">
     <div class="page-hero">
       <t-typography-title level="h4">
-        {{ day?.label }} <span class="muted">· {{ day?.date }}</span>
+        {{ heroTitle }} <span class="muted">· {{ day?.date }}</span>
       </t-typography-title>
+      <p class="scope-line">
+        <t-tag :theme="editingSession ? 'warning' : 'success'" variant="light">{{ scopeLabel }}</t-tag>
+        <span class="muted">{{ scopeHint }}</span>
+      </p>
       <p class="muted">
         已知时间 {{ headline.durationLabel ?? "—" }} · 已知距离 {{ headline.distanceLabel ?? "—" }}
       </p>
@@ -83,8 +87,10 @@ import { useRouter } from "vue-router";
 import {
   BUILTIN_COURSES,
   LIBRARY_CATEGORIES,
+  createDefaultWorkout,
   createWorkoutPresentation,
   serializeWorkout,
+  syncDayPlannedWorkout,
   validateWorkout,
   workoutPlannedTotals,
 } from "@core";
@@ -97,6 +103,8 @@ import { listCustomCourses } from "../stores/course-library.js";
 const props = defineProps({
   planId: { type: String, required: true },
   dayId: { type: String, required: true },
+  /** 指定则编辑「这一次训练」的计划内容；缺省则编辑当天课表本身 */
+  sessionId: { type: String, default: "" },
 });
 
 const router = useRouter();
@@ -108,6 +116,7 @@ const errorMessage = ref("");
 const saving = ref(false);
 const plan = ref(null);
 const day = ref(null);
+const session = ref(null);
 const workout = ref(null);
 const libraryOpen = ref(false);
 const libraryCategory = ref("T");
@@ -115,6 +124,15 @@ const dslOpen = ref(false);
 const importVisible = ref(false);
 
 const headline = computed(() => (workout.value ? createWorkoutPresentation(workout.value).headline : {}));
+/** 编辑作用域：日常可见的「当天课表」还是某一次追加训练 */
+const editingSession = computed(() => Boolean(session.value));
+const heroTitle = computed(() => (editingSession.value ? session.value.label : day.value?.label));
+const scopeLabel = computed(() => (editingSession.value ? "单独这次训练" : "当天课表"));
+const scopeHint = computed(() =>
+  editingSession.value
+    ? "只影响这一次训练的计划内容，不改变计划本身。"
+    : "写入计划课表；未完成的计划训练会跟随更新，已完成的记录保留原样。",
+);
 const dslText = computed(() => {
   try {
     return serializeWorkout(workout.value);
@@ -174,15 +192,8 @@ async function persist() {
   }
   saving.value = true;
   try {
-    const updated = clone(plan.value);
-    const targetWeek = updated.weeks.find((week) => week.days.some((entry) => entry.id === props.dayId));
-    const targetDay = targetWeek?.days.find((entry) => entry.id === props.dayId);
-    if (!targetDay) throw new Error("训练日不存在");
-    const totals = workoutPlannedTotals(workout.value);
-    targetDay.workout = clone(workout.value);
-    targetDay.plannedDistanceKm = totals.distanceKm;
-    targetDay.plannedDurationMinutes = totals.durationMinutes;
-    await service.savePlan(updated);
+    if (editingSession.value) await persistSessionWorkout();
+    else await persistDayWorkout();
     window.alert("课表已保存");
     backToDay();
   } catch (caught) {
@@ -190,6 +201,32 @@ async function persist() {
   } finally {
     saving.value = false;
   }
+}
+
+/** 追加训练：只改写这一次训练的计划内容 */
+async function persistSessionWorkout() {
+  const updated = {
+    ...clone(session.value),
+    plannedWorkout: clone(workout.value),
+    updatedAt: new Date().toISOString(),
+  };
+  await service.saveSession(updated);
+}
+
+/** 当天课表：写回计划，并让未结束的计划训练跟随更新 */
+async function persistDayWorkout() {
+  const updated = clone(plan.value);
+  const targetWeek = updated.weeks.find((week) => week.days.some((entry) => entry.id === props.dayId));
+  const targetDay = targetWeek?.days.find((entry) => entry.id === props.dayId);
+  if (!targetDay) throw new Error("训练日不存在");
+  const totals = workoutPlannedTotals(workout.value);
+  targetDay.workout = clone(workout.value);
+  targetDay.plannedDistanceKm = totals.distanceKm;
+  targetDay.plannedDurationMinutes = totals.durationMinutes;
+  await service.savePlan(updated);
+  plan.value = updated;
+  day.value = targetDay;
+  await syncDayPlannedWorkout(service, updated, targetDay);
 }
 
 onMounted(async () => {
@@ -204,10 +241,17 @@ onMounted(async () => {
     error.value = "训练日不存在";
     return;
   }
-  workout.value = day.value.workout ? clone(day.value.workout) : null;
-  if (!workout.value) {
-    error.value = "该训练日没有结构化课表";
+  if (props.sessionId) {
+    const sessions = await service.listSessions(props.planId, props.dayId);
+    session.value = sessions.find((entry) => entry.id === props.sessionId) ?? null;
+    if (!session.value) {
+      error.value = "没有找到这次训练";
+      return;
+    }
   }
+  const planned = editingSession.value ? session.value.plannedWorkout : day.value.workout;
+  // 无结构化课表时给出可编辑草稿（含休息日补课、追加训练补计划）
+  workout.value = planned ? clone(planned) : createDefaultWorkout();
 });
 </script>
 
@@ -215,6 +259,7 @@ onMounted(async () => {
 .field { display: grid; gap: 4px; }
 .field span { font-size: 12px; color: #607066; }
 .field input { padding: 6px 9px; border: 1px solid var(--td-component-stroke); border-radius: 8px; font-size: 13px; }
+.scope-line { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
 .category-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
 .category-chip { padding: 3px 12px; border-radius: 999px; border: 1px solid var(--td-component-stroke); background: #fff; font-size: 12px; cursor: pointer; }
 .category-chip.active { background: #357a52; border-color: #357a52; color: #fff; font-weight: 700; }
