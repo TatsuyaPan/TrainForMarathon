@@ -5,6 +5,7 @@ import {
   cloneLibraryCourse,
   createLibraryCourse,
   getLibraryCourse,
+  inferLibraryCategory,
   listCoursesByCategory,
   recommendLibraryCourse,
   updateLibraryCourse,
@@ -57,6 +58,18 @@ describe("内置课程库", () => {
     const custom = createLibraryCourse({ category: "T", workout: parseWorkoutDsl("GOAL:x\nMS:10min@T") });
     expect(getLibraryCourse(custom.id, [custom])?.origin).toBe("custom");
     expect(getLibraryCourse("not-exist")).toBeUndefined();
+  });
+
+  it("按主训练档位推断分类，热身与冷身不参与", () => {
+    expect(inferLibraryCategory(parseWorkoutDsl("GOAL:有氧基础\nMS:40min@E"))).toBe("E");
+    // 只有主训练决定分类：WU/CD 的 E 不参与判断
+    expect(inferLibraryCategory(parseWorkoutDsl("GOAL:乳酸阈能力\nWU:15min@E\nMS:4x(8min@T+90s@jog)\nCD:10min@E"))).toBe("T");
+    // 多个档位归为混合刺激
+    expect(inferLibraryCategory(parseWorkoutDsl("GOAL:混合刺激\nMS:2x(3min@I+2min@jog)+5min@T"))).toBe("mixed");
+    // 没有主训练时不猜测，归为混合刺激
+    const warmupOnly = createDefaultWorkout();
+    warmupOnly.phases = warmupOnly.phases.filter((phase) => phase.role !== "main");
+    expect(inferLibraryCategory(warmupOnly)).toBe("mixed");
   });
 });
 

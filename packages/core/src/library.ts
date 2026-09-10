@@ -63,6 +63,18 @@ function deriveTags(workout: Workout, category: LibraryCategory): DanielsZone[] 
   return [category];
 }
 
+/**
+ * 依据主训练阶段的强度档位推断课程分类：单一档位直接采用，多档位归为混合刺激。
+ * 热身与冷身通常都是 E，不参与分类判断；没有主训练时归为混合刺激。
+ *
+ * 导入 DSL 后由各平台调用（Web 与小程序共用同一套推断规则），避免两端分类口径不一致。
+ */
+export function inferLibraryCategory(workout: Workout): LibraryCategory {
+  const main = workout?.phases?.find((phase) => phase.role === "main");
+  const zones = workoutZones(main ? { ...workout, phases: [main] } : workout);
+  return zones.length === 1 ? zones[0] : "mixed";
+}
+
 const DANIELS_TAGS = new Set<string>(DANIELS_ZONES);
 
 /** 校验课程库条目：元数据 + Workout 结构 */

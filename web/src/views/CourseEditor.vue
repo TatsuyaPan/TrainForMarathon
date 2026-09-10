@@ -112,11 +112,11 @@ import {
   createWorkoutPresentation,
   formatDistanceLabel,
   formatDurationLabel,
+  inferLibraryCategory,
   normalizeWorkout,
   parseWorkoutDsl,
   serializeWorkout,
   validateWorkout,
-  workoutZones,
 } from "@core";
 import WorkoutEditor from "../components/WorkoutEditor.vue";
 import StructurePreview from "../components/StructurePreview.vue";
@@ -207,7 +207,7 @@ onMounted(() => {
       return;
     }
     draft.value = source === "import"
-      ? newDraft(pending.draft, { category: inferCategory(pending.draft), source: "导入" })
+      ? newDraft(pending.draft, { category: inferLibraryCategory(pending.draft), source: "导入" })
       : clone(pending.draft);
     dirty.value = true;
     return;
@@ -238,16 +238,6 @@ function newDraft(workout, overrides = {}) {
       dslVersion: workout.dslVersion ?? CURRENT_WORKOUT_DSL_VERSION,
     },
   };
-}
-
-/**
- * 依据主训练阶段的强度档位推断分类：单一档位直接采用，多档位归为混合刺激。
- * 热身与冷身通常都是 E，不参与分类判断。
- */
-function inferCategory(workout) {
-  const main = workout.phases?.find((phase) => phase.role === "main");
-  const zones = workoutZones(main ? { ...workout, phases: [main] } : workout);
-  return zones.length === 1 ? zones[0] : "mixed";
 }
 
 function save() {
