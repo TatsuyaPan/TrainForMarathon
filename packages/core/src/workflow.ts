@@ -35,6 +35,18 @@ import { selectDayAlternative, swapPlanDays } from "./plans/adjust.js";
 import { buildDayWorkout, workoutPlannedTotals } from "./plans/session-params.js";
 import type { SessionContext } from "./plans/session-params.js";
 import { normalizeWorkout, validateWorkout } from "./dsl/workout.js";
+import { deepClone } from "./clone.js";
+
+/**
+ * 写入会话前的防御性快照。
+ *
+ * 平台传入的课表可能是响应式代理（Web）或随后还要复用的对象（小程序、批量生成），
+ * core 只保存属于自己的那份数据：先深拷贝再归一化。这样平台不需要自己复制领域对象，
+ * 也不会因为外部随后修改而悄悄改写已存会话。
+ */
+function snapshotWorkout(workout: Workout | undefined): Workout | undefined {
+  return workout ? normalizeWorkout(deepClone(workout)) : undefined;
+}
 
 /** 平台存储接口：三个业务集合的增删查（键为逻辑 id） */
 export interface DataStore {
@@ -407,7 +419,7 @@ export async function ensureDaySessions(
     seq: 0,
     origin: "plan",
     label: day.label,
-    plannedWorkout: day.workout,
+    plannedWorkout: snapshotWorkout(day.workout),
     status: "planned",
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -441,7 +453,7 @@ export async function syncDayPlannedWorkout(
     const updated: TrainingSession = {
       ...session,
       label: day.label,
-      plannedWorkout: day.workout,
+      plannedWorkout: snapshotWorkout(day.workout),
       updatedAt: new Date().toISOString(),
     };
     await service.saveSession(updated);
@@ -474,7 +486,7 @@ export async function completeSession(
   const updated: TrainingSession = {
     ...session,
     status: "done",
-    actualWorkout: input.actualWorkout,
+    actualWorkout: snapshotWorkout(input.actualWorkout),
     actualDistanceKm: input.actualDistanceKm,
     actualDurationMinutes: input.actualDurationMinutes,
     actualRpe: input.actualRpe,
@@ -519,7 +531,7 @@ export async function addExtraSession(
     seq,
     origin: "extra",
     label: input.label,
-    plannedWorkout: input.plannedWorkout,
+    plannedWorkout: snapshotWorkout(input.plannedWorkout),
     status: "planned",
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -738,7 +750,7 @@ export async function setSessionPlannedWorkout(
 function assertValidWorkout(workout: Workout): Workout {
   const issues = validateWorkout(workout);
   if (issues.length > 0) throw new Error(issues.map((issue) => issue.message).join("\n"));
-  return normalizeWorkout(workout);
+  return normalizeWorkout(deepClone(workout));
 }
 
 /** 会话 → 统计记录：done→completed，skipped→skipped；planned 不计入 */

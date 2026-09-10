@@ -16,25 +16,7 @@ import {
   swapTrainingDays,
 } from "../src/workflow.js";
 import type { Workout } from "../src/domain.js";
-
-class MemoryStore implements DataStore {
-  private collections = new Map<string, Map<string, unknown>>();
-  async get(collection: string, id: string): Promise<unknown | null> {
-    return this.collections.get(collection)?.get(id) ?? null;
-  }
-  async set(collection: string, id: string, value: unknown): Promise<void> {
-    if (!this.collections.has(collection)) this.collections.set(collection, new Map());
-    this.collections.get(collection)!.set(id, structuredClone(value));
-  }
-  async list(collection: string, filters: Record<string, unknown> = {}): Promise<unknown[]> {
-    return [...(this.collections.get(collection)?.values() ?? [])].filter((doc) =>
-      Object.entries(filters).every(([key, value]) => (doc as Record<string, unknown>)[key] === value),
-    );
-  }
-  async delete(collection: string, id: string): Promise<void> {
-    this.collections.get(collection)?.delete(id);
-  }
-}
+import { MemoryStore } from "./helpers/memory-store.js";
 
 type Plan = PlanInstance & { id: string };
 

@@ -153,10 +153,11 @@ export function updateLibraryCourse(
   const updated: LibraryCourse = {
     ...course,
     ...patch,
-    tags: patch.tags ?? (patch.category && patch.category !== course.category
+    // 标签始终复制一份：课程与调用方（响应式列表、批量导入）不共享数组引用
+    tags: [...new Set(patch.tags ?? (patch.category && patch.category !== course.category
       ? deriveTags(patch.workout ?? course.workout, patch.category)
-      : course.tags),
-    workout: patch.workout ? normalizeWorkout(deepClone(patch.workout)) : course.workout,
+      : course.tags))],
+    workout: normalizeWorkout(deepClone(patch.workout ?? course.workout)),
     updatedAt: nowIso(),
   };
   const issues = validateLibraryCourse(updated);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deepClone } from "../src/clone.js";
+import { deepClone, stripUndefinedFields } from "../src/clone.js";
 import { cloneLibraryCourse, createLibraryCourse, type LibraryCourse } from "../src/library.js";
 import { parseWorkoutDsl } from "../src/dsl/registry.js";
 import { addPhase, createDefaultSegment, insertSegment } from "../src/dsl/edit.js";
@@ -29,6 +29,18 @@ describe("平台无关深拷贝", () => {
     expect(deepClone("x")).toBe("x");
     expect(deepClone(null)).toBeNull();
     expect(deepClone(undefined)).toBeUndefined();
+  });
+
+  it("stripUndefinedFields 递归去掉空键，数组元素也一并清理", () => {
+    const cleaned = stripUndefinedFields({
+      keep: 1,
+      drop: undefined,
+      nested: { drop: undefined, list: [1, { drop: undefined, keep: 2 }] },
+    });
+
+    expect(cleaned).toEqual({ keep: 1, nested: { list: [1, { keep: 2 }] } });
+    expect(Object.keys(cleaned)).toEqual(["keep", "nested"]);
+    expect(Object.keys(cleaned.nested.list[1] as object)).toEqual(["keep"]);
   });
 
   it("Vue 那样的响应式代理也能安全拷贝", () => {
