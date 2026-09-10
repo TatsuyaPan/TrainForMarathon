@@ -68,6 +68,7 @@ python test/e2e_first_run.py          # 首次配置 → 生成课表 → 记录
 python test/e2e_session_lifecycle.py  # 一天多训练、完成/跳过、课表编辑与计划同步
 python test/e2e_course_library.py     # 课程库展示、DSL 导入、新建/编辑/复制/删除
 python test/e2e_settings_fitness.py   # 能力保存 → 重建课表 → 重置全部数据
+python test/e2e_mobile_layout.py      # 390px 手机宽度下逐页检查横向溢出
 ```
 
 ## 结构
