@@ -5,8 +5,10 @@ import {
   createSetup,
   describeWorkout,
   ensureAthlete,
+  findPlanDayById,
   getHomeSummary,
   getSetupState,
+  mergeProgressRecords,
   resetSetup,
   todayIso,
 } from "../src/workflow.js";
@@ -88,5 +90,37 @@ describe("training workflow (platform-agnostic)", () => {
 
     // 单位只出现一次（历史缺陷：4:50/km–5:10/km/km）
     expect([...easy, ...custom].join(" ")).not.toContain("/km/km");
+  });
+});
+
+describe("跨端共用的定位与合并规则", () => {
+  it("按 dayId 定位计划日，找不到时返回 null", async () => {
+    const service = new DefaultTrainingDataService(new MemoryStore());
+    const athlete = await ensureAthlete(service);
+    const plan = await createSetup(service, athlete, {
+      templateId: "20-week",
+      raceDate: RACE_DATE,
+      thresholdPaceSecondsPerKm: 240,
+      maxWeeklyKm: 80,
+    });
+
+    const day = plan.weeks[3].days[2];
+    expect(findPlanDayById(plan, day.id)).toBe(day);
+    expect(findPlanDayById(plan, "day-不存在")).toBeNull();
+  });
+
+  it("同一天会话优先，旧打卡只在没有会话时兜底", () => {
+    const legacy = [
+      { dayId: "day-1", status: "completed" as const, actualDistanceKm: 5, updatedAt: "2026-09-01T00:00:00.000Z" },
+      { dayId: "day-2", status: "completed" as const, actualDistanceKm: 8, updatedAt: "2026-09-02T00:00:00.000Z" },
+    ];
+    const fromSessions = [
+      { dayId: "day-1", status: "partial" as const, actualDistanceKm: 12, updatedAt: "2026-09-10T00:00:00.000Z" },
+    ];
+
+    const merged = mergeProgressRecords(legacy, fromSessions);
+    expect(merged).toHaveLength(2);
+    expect(merged.find((record) => record.dayId === "day-1")).toEqual(fromSessions[0]);
+    expect(merged.find((record) => record.dayId === "day-2")).toEqual(legacy[1]);
   });
 });

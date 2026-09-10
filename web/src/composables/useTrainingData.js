@@ -2,7 +2,14 @@
  * 训练数据 composable：加载计划/进度/训练会话，供日历三层共享。
  */
 import { ref } from "vue";
-import { ensureDaySessions, getSetupState, sessionsToProgress, todayIso } from "@core";
+import {
+  ensureDaySessions,
+  findPlanDayById,
+  getSetupState,
+  mergeProgressRecords,
+  sessionsToProgress,
+  todayIso,
+} from "@core";
 import { getAthlete, service } from "../app-context.js";
 
 export function useTrainingData() {
@@ -41,11 +48,13 @@ export function useTrainingData() {
     }
     sessionsByDay.value = byDaySessions;
 
-    const merged = new Map();
     const legacy = await service.listProgress(plan.value.id);
-    for (const entry of legacy) merged.set(entry.record.dayId, entry.record);
-    for (const record of sessionsToProgress(sessions)) merged.set(record.dayId, record);
-    recordsByDay.value = merged;
+    // 合并顺序（会话优先，旧打卡兜底）由 core 决定，各端不各写一遍
+    const records = mergeProgressRecords(
+      legacy.map((entry) => entry.record),
+      sessionsToProgress(sessions),
+    );
+    recordsByDay.value = new Map(records.map((record) => [record.dayId, record]));
   }
 
   /** 打卡后刷新单日状态（旧 progress 兼容路径） */
@@ -57,7 +66,7 @@ export function useTrainingData() {
   /** 惰性生成并读取某训练日的会话列表 */
   async function loadDaySessions(dayId) {
     if (!plan.value) return [];
-    const day = findPlanDay(plan.value, dayId);
+    const day = findPlanDayById(plan.value, dayId);
     if (!day) return [];
     const sessions = await ensureDaySessions(service, plan.value, day);
     const sorted = [...sessions].sort((a, b) => a.seq - b.seq);
@@ -86,15 +95,6 @@ export function useTrainingData() {
     loadDaySessions,
     refreshDaySessions,
   };
-}
-
-/** 按 id 找计划日 */
-export function findPlanDay(plan, dayId) {
-  for (const week of plan.weeks) {
-    const day = week.days.find((d) => d.id === dayId);
-    if (day) return day;
-  }
-  return null;
 }
 
 export { todayIso };

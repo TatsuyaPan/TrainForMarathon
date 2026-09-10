@@ -181,6 +181,7 @@ import {
   addExtraSession,
   createWorkoutPresentation,
   describeWorkout,
+  findPlanWeek,
   intensityBarStyle,
   isPlanSlotSession,
   listAllCourses,
@@ -242,14 +243,10 @@ async function resolveDay() {
   week.value = null;
   sessions.value = [];
   if (!plan.value) return;
-  for (const candidateWeek of plan.value.weeks) {
-    const candidateDay = candidateWeek.days.find((entry) => entry.date === props.date);
-    if (candidateDay) {
-      day.value = candidateDay;
-      week.value = candidateWeek;
-      break;
-    }
-  }
+  // 定位规则（哪一周、哪一天）由 core 提供，界面只负责渲染
+  const located = findPlanWeek(plan.value, props.date);
+  week.value = located?.week ?? null;
+  day.value = located ? located.week.days.find((entry) => entry.date === props.date) ?? null : null;
   if (day.value) sessions.value = sortSessions(await loadDaySessions(day.value.id));
 }
 

@@ -39,7 +39,7 @@
 
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
-import { PROGRESS_STATUS_LABELS, formatTrainingDay, intensityBarStyle } from "@core";
+import { PROGRESS_STATUS_LABELS, findPlanWeek, formatTrainingDay, intensityBarStyle } from "@core";
 import { service } from "../app-context.js";
 import { useTrainingData } from "../composables/useTrainingData.js";
 
@@ -69,8 +69,7 @@ function statusTheme(status) {
 
 function resolveWeek() {
   if (!plan.value) return;
-  const index = plan.value.weeks.findIndex((w) => w.days.some((d) => d.date === props.date));
-  week.value = index !== -1 ? plan.value.weeks[index] : null;
+  week.value = findPlanWeek(plan.value, props.date)?.week ?? null;
   days.value = daysOfWeek.value;
 }
 

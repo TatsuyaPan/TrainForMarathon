@@ -316,6 +316,15 @@ export function findTodayTraining(plan: PlanInstance, dateIso: string): PlanInst
   return null;
 }
 
+/** 按 dayId 返回计划日；无匹配返回 null（会话只存 dayId，界面需要据此回到计划日） */
+export function findPlanDayById(plan: PlanInstance, dayId: string): PlanInstanceDay | null {
+  for (const week of plan.weeks) {
+    const day = week.days.find((candidate) => candidate.id === dayId);
+    if (day) return day;
+  }
+  return null;
+}
+
 /** 保存一次打卡记录；重复打卡同一训练日覆盖（以最近一次 updatedAt 为准） */
 export async function checkIn(
   service: TrainingDataService,
@@ -342,7 +351,7 @@ export async function getHomeSummary(
   const sessions = await service.listSessions(plan.id);
   const sessionRecords = sessionsToProgress(sessions);
   const legacy = await service.listProgress(plan.id);
-  const records = mergeRecords(
+  const records = mergeProgressRecords(
     legacy.map((entry) => entry.record),
     sessionRecords,
   );
@@ -360,7 +369,15 @@ export async function getHomeSummary(
   };
 }
 
-function mergeRecords(legacy: readonly ProgressRecord[], sessions: readonly ProgressRecord[]): ProgressRecord[] {
+/**
+ * 合并旧打卡记录与会话推导记录：同一天以会话为准，旧记录只在没有会话时兜底。
+ *
+ * 日历、周视图、首页统计共用这一条规则，平台不需要自己写一遍合并顺序。
+ */
+export function mergeProgressRecords(
+  legacy: readonly ProgressRecord[],
+  sessions: readonly ProgressRecord[],
+): ProgressRecord[] {
   const byDay = new Map<string, ProgressRecord>();
   for (const record of legacy) byDay.set(record.dayId, record);
   for (const record of sessions) byDay.set(record.dayId, record); // 会话优先
