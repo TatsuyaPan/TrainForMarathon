@@ -90,9 +90,8 @@ import {
   createDefaultWorkout,
   createWorkoutPresentation,
   serializeWorkout,
-  syncDayPlannedWorkout,
-  validateWorkout,
-  workoutPlannedTotals,
+  setDayWorkout,
+  setSessionPlannedWorkout,
 } from "@core";
 import { service } from "../app-context.js";
 import WorkoutEditor from "../components/WorkoutEditor.vue";
@@ -185,11 +184,6 @@ function backToDay() {
 
 async function persist() {
   errorMessage.value = "";
-  const issues = validateWorkout(workout.value);
-  if (issues.length > 0) {
-    errorMessage.value = issues.map((issue) => issue.message).join("\n");
-    return;
-  }
   saving.value = true;
   try {
     if (editingSession.value) await persistSessionWorkout();
@@ -205,28 +199,14 @@ async function persist() {
 
 /** 追加训练：只改写这一次训练的计划内容 */
 async function persistSessionWorkout() {
-  const updated = {
-    ...clone(session.value),
-    plannedWorkout: clone(workout.value),
-    updatedAt: new Date().toISOString(),
-  };
-  await service.saveSession(updated);
+  session.value = await setSessionPlannedWorkout(service, session.value, clone(workout.value));
 }
 
 /** 当天课表：写回计划，并让未结束的计划训练跟随更新 */
 async function persistDayWorkout() {
-  const updated = clone(plan.value);
-  const targetWeek = updated.weeks.find((week) => week.days.some((entry) => entry.id === props.dayId));
-  const targetDay = targetWeek?.days.find((entry) => entry.id === props.dayId);
-  if (!targetDay) throw new Error("训练日不存在");
-  const totals = workoutPlannedTotals(workout.value);
-  targetDay.workout = clone(workout.value);
-  targetDay.plannedDistanceKm = totals.distanceKm;
-  targetDay.plannedDurationMinutes = totals.durationMinutes;
-  await service.savePlan(updated);
-  plan.value = updated;
-  day.value = targetDay;
-  await syncDayPlannedWorkout(service, updated, targetDay);
+  const saved = await setDayWorkout(service, plan.value, props.dayId, clone(workout.value));
+  plan.value = saved.plan;
+  day.value = saved.day;
 }
 
 onMounted(async () => {
