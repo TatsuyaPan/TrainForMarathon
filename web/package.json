@@ -8,6 +8,7 @@
     "sync:assets": "node scripts/sync-web-assets.mjs",
     "dev": "npm run sync:assets && vite",
     "build": "npm run sync:assets && vite build",
+    "test": "vitest run",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -17,6 +18,9 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",
+    "@vue/test-utils": "2.4.6",
+    "happy-dom": "^18.0.1",
+    "vitest": "^3.2.4",
     "vite": "^5.4.0"
   }
 }
