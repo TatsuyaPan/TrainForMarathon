@@ -17,10 +17,24 @@
             <span class="muted">次</span>
             <span v-if="segment.note" class="muted">· {{ segment.note }}</span>
             <span class="spacer" />
-            <button type="button" title="上移" @click="emitCommand('up', index)">↑</button>
-            <button type="button" title="下移" @click="emitCommand('down', index)">↓</button>
-            <button type="button" @click="emitCommand('duplicate', index)">复制</button>
-            <button type="button" class="danger" @click="emitCommand('remove', index)">删除</button>
+            <button
+              type="button"
+              class="row-open"
+              :data-segment-path="pathKey(index)"
+              :aria-label="`循环设置：${segment.repetitions} 次`"
+              :aria-expanded="isSelected(index)"
+              @click="emitSelect(index)"
+              @keydown.enter.prevent="emitSelect(index)"
+              @keydown.space.prevent="emitSelect(index)"
+            >
+              循环设置
+            </button>
+            <span class="row-actions">
+              <button type="button" title="上移" @click="emitCommand('up', index)">↑</button>
+              <button type="button" title="下移" @click="emitCommand('down', index)">↓</button>
+              <button type="button" @click="emitCommand('duplicate', index)">复制</button>
+              <button type="button" class="danger" @click="emitCommand('remove', index)">删除</button>
+            </span>
           </div>
           <CourseSegmentList
             :segments="segment.segments"
@@ -41,18 +55,25 @@
       </template>
 
       <template v-else>
-        <div
-          class="segment-row"
-          :class="{ active: isSelected(index) }"
-          :data-testid="`segment-row-${index}`"
-          @click="$emit('select', [...parentPath, index])"
-        >
-          <span class="dot" :style="{ background: segmentColor(segment) }" aria-hidden="true" />
-          <span class="type">{{ typeLabel(segment) }}</span>
-          <span class="load">{{ loadText(segment) }}</span>
-          <span v-if="segment.kind === 'run'" class="target">{{ formatTargetShortLabel(segment.target) }}</span>
+        <div class="segment-row" :class="{ active: isSelected(index) }">
+          <button
+            type="button"
+            class="row-main"
+            :data-testid="`segment-row-${index}`"
+            :data-segment-path="pathKey(index)"
+            :aria-label="`${typeLabel(segment)} ${loadText(segment)}：打开步骤编辑`"
+            :aria-expanded="isSelected(index)"
+            @click="emitSelect(index)"
+            @keydown.enter.prevent="emitSelect(index)"
+            @keydown.space.prevent="emitSelect(index)"
+          >
+            <span class="dot" :style="{ background: segmentColor(segment) }" aria-hidden="true" />
+            <span class="type">{{ typeLabel(segment) }}</span>
+            <span class="load">{{ loadText(segment) }}</span>
+            <span v-if="segment.kind === 'run'" class="target">{{ formatTargetShortLabel(segment.target) }}</span>
+          </button>
           <span class="spacer" />
-          <span class="row-actions" @click.stop>
+          <span class="row-actions">
             <button type="button" title="上移" @click="emitCommand('up', index)">↑</button>
             <button type="button" title="下移" @click="emitCommand('down', index)">↓</button>
             <button type="button" @click="emitCommand('duplicate', index)">复制</button>
@@ -102,6 +123,15 @@ function isSelected(index) {
   return Array.isArray(props.selectedPath) && props.selectedPath.join(".") === path.join(".");
 }
 
+/** 步骤在课表里的稳定路径标识，用于选中后把焦点还回原步骤 */
+function pathKey(index) {
+  return [...props.parentPath, index].join("-");
+}
+
+function emitSelect(index) {
+  emit("select", [...props.parentPath, index]);
+}
+
 function typeLabel(segment) {
   if (segment.kind === "recovery") return "恢复";
   if (segment.kind === "rest") return "休息";
@@ -147,19 +177,37 @@ function changeRepetitions(index, event) {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  padding: 7px 10px;
+  padding: 4px 10px;
   border: 1px solid var(--td-component-stroke);
   border-radius: 8px;
   background: #fff;
-  cursor: pointer;
 }
 .segment-row.active { border-color: #357a52; box-shadow: 0 0 0 2px #e8f1ea; }
+/* 可选中的主体是原生按钮：键盘 Tab/Enter/Space 天然可用，操作按钮不再被包进按钮里 */
+.row-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+  padding: 3px 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.row-main:focus-visible,
+.row-open:focus-visible { outline: 2px solid #357a52; outline-offset: 2px; border-radius: 6px; }
 .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .type { font-weight: 600; }
 .load, .target { font-variant-numeric: tabular-nums; }
 .spacer { flex: 1; }
 .row-actions { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
 .row-actions button,
+.row-open,
 .repeat-add button {
   font-size: 12px;
   padding: 2px 8px;

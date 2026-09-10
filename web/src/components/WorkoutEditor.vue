@@ -1,5 +1,5 @@
 <template>
-  <div class="workout-editor" data-testid="workout-editor">
+  <div ref="root" class="workout-editor" data-testid="workout-editor">
     <div class="editor-grid" :class="{ 'has-focus': Boolean(selectedSegment) }">
       <div class="editor-main">
         <CourseStructureEditor
@@ -12,13 +12,21 @@
       </div>
 
       <aside v-if="selectedSegment" class="editor-aside">
-        <div class="aside-card" data-testid="focused-editor">
+        <div
+          ref="focusedPanel"
+          class="aside-card"
+          data-testid="focused-editor"
+          role="dialog"
+          tabindex="-1"
+          :aria-label="`步骤编辑：${focusedLabel}`"
+          @keydown.esc.stop.prevent="closeFocused"
+        >
           <CourseStepEditor
             :segment="selectedSegment"
             :role="selectedRole"
             @update:segment="applySelected"
             @remove="removeSelected"
-            @close="select(null)"
+            @close="closeFocused"
           />
         </div>
       </aside>
@@ -27,8 +35,8 @@
 </template>
 
 <script setup>
-import { computed, ref } from "vue";
-import { removeSegment, replaceSegment, segmentAt } from "@core";
+import { computed, nextTick, ref } from "vue";
+import { RUN_ROLE_LABELS, removeSegment, replaceSegment, segmentAt } from "@core";
 import CourseStructureEditor from "./CourseStructureEditor.vue";
 import CourseStepEditor from "./CourseStepEditor.vue";
 
@@ -41,6 +49,8 @@ const emit = defineEmits(["update:workout", "update:selectedPath", "error"]);
 
 const localPath = ref(null);
 const currentPath = computed(() => (props.selectedPath === undefined ? localPath.value : props.selectedPath));
+const root = ref(null);
+const focusedPanel = ref(null);
 
 const selectedSegment = computed(() => {
   const path = currentPath.value;
@@ -49,6 +59,15 @@ const selectedSegment = computed(() => {
 });
 
 const selectedRole = computed(() => props.workout.phases[currentPath.value?.[0]]?.role ?? "main");
+
+const focusedLabel = computed(() => {
+  const segment = selectedSegment.value;
+  if (!segment) return "";
+  if (segment.kind === "repeat") return "循环";
+  if (segment.kind === "recovery") return "主动恢复";
+  if (segment.kind === "rest") return "被动休息";
+  return RUN_ROLE_LABELS[selectedRole.value] ?? "跑步步骤";
+});
 
 /** core 结构编辑函数内部 structuredClone，Proxy 不能直接克隆，先转普通对象 */
 function plainWorkout() {
@@ -60,8 +79,36 @@ function publish(workout) {
 }
 
 function select(path) {
+  setPath(path);
+  if (path) focusPanel();
+}
+
+function setPath(path) {
   localPath.value = path;
   emit("update:selectedPath", path);
+}
+
+/**
+ * 关闭聚焦编辑：焦点回到刚才那个步骤（键盘与读屏用户不会丢失位置）。
+ */
+function closeFocused() {
+  const previous = currentPath.value;
+  setPath(null);
+  restoreRowFocus(previous);
+}
+
+/** 打开聚焦编辑：把焦点移进面板，键盘用户不必再 Tab 一大圈 */
+function focusPanel() {
+  nextTick(() => focusedPanel.value?.focus());
+}
+
+function restoreRowFocus(path) {
+  if (!Array.isArray(path) || path.length < 2) return;
+  const key = path.join("-");
+  nextTick(() => {
+    const row = root.value?.querySelector(`[data-segment-path="${key}"]`);
+    row?.focus?.();
+  });
 }
 
 function applySelected(segment) {
@@ -79,7 +126,8 @@ function removeSelected() {
   if (!Array.isArray(path) || path.length < 2) return;
   try {
     publish(removeSegment(plainWorkout(), path));
-    select(null);
+    // 删除后索引会前移，焦点不再回到原步骤
+    setPath(null);
   } catch (error) {
     emit("error", error instanceof Error ? error.message : "步骤删除失败");
   }
