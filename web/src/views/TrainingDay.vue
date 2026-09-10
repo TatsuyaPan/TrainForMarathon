@@ -15,7 +15,7 @@
         <t-button v-if="week" size="small" variant="outline" @click="$router.push({ path: '/training/week', query: { date } })">本周</t-button>
         <t-button v-if="week && dayIndex >= 0" data-testid="open-day-adjust" size="small" variant="outline" @click="adjustVisible = true">调整课表</t-button>
         <t-button data-testid="edit-day-workout" size="small" variant="outline" @click="editDayWorkout">编辑课表</t-button>
-        <t-button data-testid="show-add-session" size="small" theme="primary" @click="addVisible = true">+ 添加训练</t-button>
+        <t-button data-testid="show-add-session" size="small" theme="primary" @click="openAdd">+ 添加训练</t-button>
       </div>
     </header>
 
@@ -139,6 +139,22 @@
             :maxlength="30"
           />
         </t-form-item>
+        <t-form-item label="训练内容（可选）">
+          <select
+            v-model="addForm.courseId"
+            class="course-select"
+            data-testid="extra-session-course"
+            @change="onCourseChange"
+          >
+            <option value="">不指定内容（完成时再记录实际训练）</option>
+            <option v-for="course in courses" :key="course.id" :value="course.id">
+              {{ courseLabel(course) }} · {{ LIBRARY_CATEGORY_LABELS[course.category] ?? course.category }}
+            </option>
+          </select>
+          <p v-if="pickedCourse" class="muted picked-course" data-testid="extra-session-preview">
+            计划内容 · {{ describeWorkoutLines(pickedCourse.workout) }}
+          </p>
+        </t-form-item>
       </t-form>
       <div v-if="addError" class="inline-error" role="alert">{{ addError }}</div>
       <div class="session-actions">
@@ -160,16 +176,20 @@
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import {
+  LIBRARY_CATEGORY_LABELS,
   TRAINING_TYPE_LABELS,
   addExtraSession,
+  createWorkoutPresentation,
   describeWorkout,
   intensityBarStyle,
   isPlanSlotSession,
+  listAllCourses,
   removeSession,
   skipSession,
 } from "@core";
 import { service } from "../app-context.js";
 import { useTrainingData } from "../composables/useTrainingData.js";
+import { listCustomCourses } from "../stores/course-library.js";
 import DayAdjustDialog from "../components/DayAdjustDialog.vue";
 
 const props = defineProps({ date: { type: String, required: true } });
@@ -184,7 +204,26 @@ const adjustVisible = ref(false);
 const adding = ref(false);
 const addError = ref("");
 const actionError = ref("");
-const addForm = reactive({ label: "" });
+const addForm = reactive({ label: "", courseId: "" });
+/** 追加训练可选的计划内容：内置课程 + 本地自定义课程 */
+const courses = ref([]);
+
+const pickedCourse = computed(() => courses.value.find((course) => course.id === addForm.courseId) ?? null);
+
+function courseLabel(course) {
+  try {
+    return createWorkoutPresentation(course.workout).title;
+  } catch {
+    return course.workout?.goal || "未命名课程";
+  }
+}
+
+/** 选了课程但还没写名字时，用课程标题当训练名称（可再改） */
+function onCourseChange() {
+  if (!pickedCourse.value) return;
+  if (addForm.label.trim()) return;
+  addForm.label = courseLabel(pickedCourse.value);
+}
 
 /** 当天在本周里的序号（调整课表按周内序号定位） */
 const dayIndex = computed(() => (week.value ? week.value.days.findIndex((entry) => entry.id === day.value?.id) : -1));
@@ -272,10 +311,20 @@ async function remove(session) {
   }
 }
 
+/** 打开添加训练：每次重新读取课程库，避免新增课程后选项过期 */
+function openAdd() {
+  courses.value = listAllCourses(listCustomCourses());
+  addForm.label = "";
+  addForm.courseId = "";
+  addError.value = "";
+  addVisible.value = true;
+}
+
 function closeAdd() {
   addVisible.value = false;
   addError.value = "";
   addForm.label = "";
+  addForm.courseId = "";
 }
 
 /** 课表调整完成：换入的新课表可能让今天变成休息日，也可能改变计划内容 */
@@ -294,7 +343,10 @@ async function addSession() {
   adding.value = true;
   addError.value = "";
   try {
-    await addExtraSession(service, plan.value.id, day.value.id, { label });
+    const input = { label };
+    // 课程里的课表是响应式对象/模板引用，写入会话前先转成普通对象
+    if (pickedCourse.value) input.plannedWorkout = JSON.parse(JSON.stringify(pickedCourse.value.workout));
+    await addExtraSession(service, plan.value.id, day.value.id, input);
     sessions.value = sortSessions(await refreshDaySessions(day.value.id));
     closeAdd();
   } catch (caught) {
@@ -345,6 +397,15 @@ watch(() => props.date, async () => {
 .empty-day p { margin: 5px 0 0; color: #607066; }
 .empty-orbit { display: grid; place-items: center; flex: 0 0 48px; height: 48px; border: 1px solid #9db0a2; border-radius: 50%; color: #607066; font: 700 14px/1 ui-monospace, monospace; }
 .add-session-card { margin-top: 14px; border-radius: 16px; }
+.course-select {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--td-component-stroke);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
+}
+.picked-course { margin: 8px 0 0; font-size: 12px; }
 .add-heading { display: flex; align-items: flex-start; justify-content: space-between; }
 .add-heading h2 { margin: 4px 0 12px; }
 .close-add { border: 0; color: #607066; background: transparent; font-size: 26px; cursor: pointer; }

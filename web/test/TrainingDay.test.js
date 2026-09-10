@@ -183,6 +183,29 @@ describe("TrainingDay", () => {
     expect(trainingData.refreshDaySessions).toHaveBeenCalledWith(day.id);
   });
 
+  it("attaches course plan content when an extra session picks a library course", async () => {
+    const wrapper = await mountDay([]);
+    await wrapper.get('[data-testid="show-add-session"]').trigger("click");
+
+    const select = wrapper.get('[data-testid="extra-session-course"]');
+    const option = select.findAll("option").find((entry) => entry.element.value !== "");
+    expect(option, "课程库至少应有一门可选课程").toBeTruthy();
+    await select.setValue(option.element.value);
+
+    // 选了课程就自动带出训练名称，并预览计划内容
+    expect(wrapper.get('[data-testid="extra-session-label"]').element.value).not.toBe("");
+    expect(wrapper.get('[data-testid="extra-session-preview"]').text()).toContain("计划内容");
+
+    await wrapper.get('[data-testid="add-session"]').trigger("click");
+    await flushPromises();
+
+    const [, , , input] = addExtraSession.mock.calls[0];
+    expect(input.label).not.toBe("");
+    expect(input.plannedWorkout.dslVersion).toBe(1);
+    expect(input.plannedWorkout.goal).toBeTruthy();
+    expect(input.plannedWorkout.phases.length).toBeGreaterThan(0);
+  });
+
   it("removes an added session only after confirmation", async () => {
     const extra = session(1, "planned", { plannedWorkout: undefined });
     const wrapper = await mountDay([session(0, "planned"), extra]);

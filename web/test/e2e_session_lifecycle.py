@@ -162,18 +162,39 @@ with sync_playwright() as playwright:
     assert extra_goal == "恢复慢跑", extra_goal
     expect(page.locator('[data-session-id="plan-e2e:day-e2e:2"]')).to_contain_text("恢复慢跑")
 
+    # 追加训练也可以直接挑课程库里的课程：创建时就带计划内容，不用再进编辑器
+    page.get_by_test_id("show-add-session").click()
+    course_select = page.get_by_test_id("extra-session-course")
+    picked_course_id = course_select.locator("option").nth(1).get_attribute("value")
+    assert picked_course_id, "课程库应至少提供一门课程"
+    course_select.select_option(picked_course_id)
+    expect(page.get_by_test_id("extra-session-preview")).to_contain_text("计划内容")
+    # 选课会先把课程标题带进训练名称，用户可以改成自己的说法
+    assert page.get_by_placeholder("例：晚间恢复跑").input_value() != ""
+    page.get_by_placeholder("例：晚间恢复跑").fill("课程库加练")
+    page.get_by_test_id("add-session").click()
+    picked_card = page.locator('[data-session-id="plan-e2e:day-e2e:3"]')
+    expect(picked_card).to_contain_text("课程库加练")
+    picked_goal = page.evaluate(
+        "JSON.parse(localStorage.getItem('tfm:sessions:plan-e2e:day-e2e:3')).plannedWorkout.goal"
+    )
+    assert picked_goal, picked_goal
+    shot_lifecycle = Path(__file__).resolve().parent.parent / "test-results" / "session-extra-from-library.png"
+    shot_lifecycle.parent.mkdir(parents=True, exist_ok=True)
+    page.screenshot(path=str(shot_lifecycle), full_page=True)
+
     # 追加训练可以撤销：误添加不必留下「未进行」的假记录
     page.get_by_test_id("show-add-session").click()
     page.get_by_placeholder("例：晚间恢复跑").fill("误添加的训练")
     page.get_by_test_id("add-session").click()
-    expect(page.locator('[data-session-id="plan-e2e:day-e2e:3"]')).to_contain_text("误添加的训练")
-    page.locator('[data-session-id="plan-e2e:day-e2e:3"]').get_by_role("button", name="移除").click()
-    expect(page.locator('[data-session-id="plan-e2e:day-e2e:3"]')).to_have_count(0)
-    removed = page.evaluate("localStorage.getItem('tfm:sessions:plan-e2e:day-e2e:3')")
+    expect(page.locator('[data-session-id="plan-e2e:day-e2e:4"]')).to_contain_text("误添加的训练")
+    page.locator('[data-session-id="plan-e2e:day-e2e:4"]').get_by_role("button", name="移除").click()
+    expect(page.locator('[data-session-id="plan-e2e:day-e2e:4"]')).to_have_count(0)
+    removed = page.evaluate("localStorage.getItem('tfm:sessions:plan-e2e:day-e2e:4')")
     assert removed is None, removed
 
     session_keys = page.evaluate("Object.keys(localStorage).filter((key) => key.startsWith('tfm:sessions:'))")
-    assert len(session_keys) == 3, session_keys
+    assert len(session_keys) == 4, session_keys
     assert not console_errors, console_errors
 
     output = Path(__file__).resolve().parent.parent / "test-results" / "session-lifecycle.png"
