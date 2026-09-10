@@ -4,11 +4,22 @@
       <template v-if="node.kind === 'repeat'">
         <div class="repeat-block">
           <div class="repeat-head">
+            <button
+              type="button"
+              class="collapse-toggle"
+              :aria-expanded="!isCollapsed(node)"
+              :aria-label="`${isCollapsed(node) ? '展开' : '收起'}循环：重复 ${node.repetitions} 次`"
+              :data-testid="`toggle-repeat-${node.id}`"
+              @click="toggle(node)"
+            >
+              {{ isCollapsed(node) ? "▸" : "▾" }}
+            </button>
             <span class="repeat-badge">重复 {{ node.repetitions }} 次</span>
             <span v-if="depth >= 2" class="depth-badge">层级 {{ depth + 1 }}</span>
             <span v-if="node.note" class="muted">· {{ node.note }}</span>
           </div>
-          <WorkoutStructure :nodes="node.children" :depth="depth + 1" />
+          <WorkoutStructure v-if="!isCollapsed(node)" :nodes="node.children" :depth="depth + 1" />
+          <p v-else class="muted collapsed-hint">已收起 {{ node.children.length }} 个步骤</p>
         </div>
       </template>
       <template v-else>
@@ -27,10 +38,30 @@
 </template>
 
 <script setup>
+import { ref } from "vue";
+
 defineProps({
   nodes: { type: Array, default: () => [] },
   depth: { type: Number, default: 0 },
 });
+
+/**
+ * 折叠状态只属于界面：按路径记录，不写进 Workout 也不进 DSL。
+ * 每一层循环各自独立折叠，父层收起时子层随之下线（折叠状态因此自然重置）。
+ */
+const collapsed = ref(new Set());
+
+function isCollapsed(node) {
+  return collapsed.value.has(node.path.join("."));
+}
+
+function toggle(node) {
+  const key = node.path.join(".");
+  const next = new Set(collapsed.value);
+  if (next.has(key)) next.delete(key);
+  else next.add(key);
+  collapsed.value = next;
+}
 </script>
 
 <style scoped>
@@ -57,6 +88,20 @@ defineProps({
   background: #fbfcfb;
 }
 .repeat-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+.collapse-toggle {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  line-height: 1;
+  font-size: 12px;
+  color: #35424f;
+  background: #fff;
+  border: 1px solid var(--td-component-stroke);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.collapse-toggle:focus-visible { outline: 2px solid #357a52; outline-offset: 2px; }
+.collapsed-hint { margin: 0; font-size: 12px; }
 .repeat-badge {
   font-size: 12px;
   font-weight: 600;
