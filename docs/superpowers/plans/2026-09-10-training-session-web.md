@@ -1,5 +1,11 @@
 # Training Session Web Implementation Plan
 
+> **状态（2026-09-11 核对）：已实施。** 七项任务全部完成：core 日聚合、纯函数记录表单模型、
+> 可复用可视化编排面板、独立训练记录页、训练日会话生命周期界面、文档与父仓库指针更新。
+> 验收见 `packages/core/test/sessions.test.ts`、`web/test/SessionRecord.test.js`、
+> `web/test/TrainingDay.test.js` 与 `web/test/e2e_session_lifecycle.py`。
+> 下方步骤清单保留当时的执行顺序，未逐项勾选。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Deliver a Web training-day lifecycle where one plan day owns zero or more sessions and each completed session owns one editable actual-training record.

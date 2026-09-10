@@ -1,5 +1,9 @@
 # Core Foundation Implementation Plan
 
+> **状态（2026-09-11 核对）：已实施。** 工作区与包边界、领域模型与模板校验、结构化课表模板、
+> 配速与实例化、内容目录与统计、文档与最终验证都已在仓库中落地（`packages/core/src/**`、
+> `packages/core/test/**`）。下方步骤清单保留当时的执行顺序，未逐项勾选。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the first platform-independent TypeScript core for course content, pace ranges, parameterized training plans, progress, and basic statistics.
