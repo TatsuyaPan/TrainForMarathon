@@ -1,0 +1,140 @@
+import { flushPromises, mount } from "@vue/test-utils";
+import { ref } from "vue";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import TrainingDay from "../src/views/TrainingDay.vue";
+
+const { addExtraSession, push, service, skipSession } = vi.hoisted(() => ({
+  addExtraSession: vi.fn(),
+  push: vi.fn(),
+  service: {},
+  skipSession: vi.fn(),
+}));
+
+let trainingData;
+
+vi.mock("@core", async () => ({
+  ...(await vi.importActual("@core")),
+  addExtraSession,
+  skipSession,
+}));
+vi.mock("../src/app-context.js", () => ({ service }));
+vi.mock("../src/composables/useTrainingData.js", () => ({ useTrainingData: () => trainingData }));
+
+const day = {
+  id: "day-1",
+  date: "2026-09-10",
+  label: "阈值训练",
+  items: [{ type: "T", text: "20min T" }],
+  workout: { goal: "乳酸阈刺激", segments: [] },
+};
+const plan = { id: "plan-1", paces: {}, weeks: [{ week: 1, days: [day] }] };
+
+function session(seq, status, overrides = {}) {
+  return {
+    id: `plan-1:day-1:${seq}`,
+    planId: "plan-1",
+    dayId: "day-1",
+    seq,
+    label: seq === 0 ? "阈值训练" : `附加训练 ${seq}`,
+    status,
+    plannedWorkout: day.workout,
+    createdAt: "2026-09-10T08:00:00.000Z",
+    updatedAt: "2026-09-10T08:00:00.000Z",
+    ...overrides,
+  };
+}
+
+const ButtonStub = { emits: ["click"], template: "<button @click=\"$emit('click')\"><slot /></button>" };
+const InputStub = {
+  props: ["modelValue"],
+  emits: ["update:modelValue"],
+  template: "<input :value=\"modelValue\" @input=\"$emit('update:modelValue', $event.target.value)\" />",
+};
+
+async function mountDay(sessions) {
+  trainingData = {
+    loading: ref(false),
+    needsSetup: ref(false),
+    plan: ref(plan),
+    load: vi.fn(),
+    loadDaySessions: vi.fn().mockResolvedValue(sessions),
+    refreshDaySessions: vi.fn().mockResolvedValue(sessions),
+  };
+  const wrapper = mount(TrainingDay, {
+    props: { date: day.date },
+    global: {
+      mocks: { $router: { push } },
+      stubs: {
+        "t-button": ButtonStub,
+        "t-card": { template: "<section><slot /></section>" },
+        "t-tag": { template: "<span><slot /></span>" },
+        "t-input": InputStub,
+        "t-form": { template: "<form><slot /></form>" },
+        "t-form-item": { template: "<label><slot /></label>" },
+        "t-typography-title": { template: "<h1><slot /></h1>" },
+      },
+    },
+  });
+  await flushPromises();
+  return wrapper;
+}
+
+describe("TrainingDay", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    addExtraSession.mockResolvedValue();
+    skipSession.mockResolvedValue();
+  });
+
+  it("shows a day with zero sessions", async () => {
+    const wrapper = await mountDay([]);
+    expect(wrapper.text()).toContain("无训练安排");
+    expect(wrapper.findAll("[data-session-id]")).toHaveLength(0);
+  });
+
+  it("orders many sessions and shows lifecycle-specific actions", async () => {
+    const wrapper = await mountDay([session(2, "skipped"), session(0, "planned"), session(1, "done")]);
+    const cards = wrapper.findAll("[data-session-id]");
+
+    expect(cards.map((card) => card.attributes("data-session-id"))).toEqual([
+      "plan-1:day-1:0",
+      "plan-1:day-1:1",
+      "plan-1:day-1:2",
+    ]);
+    expect(cards[0].text()).toContain("记录并完成");
+    expect(cards[1].text()).toContain("查看或编辑记录");
+    expect(cards[2].text()).toContain("改为已完成");
+  });
+
+  it("routes every record action to the session's unique record", async () => {
+    const current = session(0, "planned");
+    const wrapper = await mountDay([current]);
+    await wrapper.get(`[data-record-session="${current.id}"]`).trigger("click");
+
+    expect(push).toHaveBeenCalledWith({
+      path: "/training/session",
+      query: { plan: "plan-1", session: current.id, date: day.date },
+    });
+  });
+
+  it("skips a planned session and refreshes the day", async () => {
+    const current = session(0, "planned");
+    const wrapper = await mountDay([current]);
+    await wrapper.get(`[data-skip-session="${current.id}"]`).trigger("click");
+    await flushPromises();
+
+    expect(skipSession).toHaveBeenCalledWith(service, current);
+    expect(trainingData.refreshDaySessions).toHaveBeenCalledWith(day.id);
+  });
+
+  it("adds a named extra session and refreshes the day", async () => {
+    const wrapper = await mountDay([]);
+    await wrapper.get('[data-testid="show-add-session"]').trigger("click");
+    await wrapper.get('[data-testid="extra-session-label"]').setValue("晚间恢复跑");
+    await wrapper.get('[data-testid="add-session"]').trigger("click");
+    await flushPromises();
+
+    expect(addExtraSession).toHaveBeenCalledWith(service, plan.id, day.id, { label: "晚间恢复跑" });
+    expect(trainingData.refreshDaySessions).toHaveBeenCalledWith(day.id);
+  });
+});
