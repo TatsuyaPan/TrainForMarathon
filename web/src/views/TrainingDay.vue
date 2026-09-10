@@ -178,7 +178,6 @@ import { useRouter } from "vue-router";
 import {
   LIBRARY_CATEGORY_LABELS,
   SESSION_STATUS_LABELS,
-  TRAINING_TYPE_LABELS,
   addExtraSession,
   createWorkoutPresentation,
   describeWorkout,
@@ -188,6 +187,7 @@ import {
   listAllCourses,
   removeSession,
   skipSession,
+  trainingTypeText,
 } from "@core";
 import { service } from "../app-context.js";
 import { useTrainingData } from "../composables/useTrainingData.js";
@@ -232,10 +232,8 @@ const dayIndex = computed(() => (week.value ? week.value.days.findIndex((entry) 
 
 /** 计划里的日期标题是紧凑记号（R、T + R、跑休…），补一份中文类型便于阅读 */
 const dayTypeText = computed(() => {
-  const types = (day.value?.items ?? [])
-    .map((item) => TRAINING_TYPE_LABELS[item.type])
-    .filter(Boolean);
-  const text = [...new Set(types)].join(" + ");
+  // 类型说法由 core 统一提供，界面只决定「和标题重复时不再重复展示」
+  const text = trainingTypeText(day.value?.items ?? []);
   return text && text !== day.value?.label ? text : "";
 });
 

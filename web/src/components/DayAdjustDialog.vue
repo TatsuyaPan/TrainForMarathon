@@ -60,7 +60,7 @@
 
 <script setup>
 import { computed, ref, watch } from "vue";
-import { TRAINING_TYPE_LABELS, applyDayAlternative, swapTrainingDays } from "@core";
+import { applyDayAlternative, swapTrainingDays, trainingTypeText } from "@core";
 import { service } from "../app-context.js";
 
 const props = defineProps({
@@ -83,17 +83,11 @@ watch(
 
 const dayIndex = computed(() => props.week.days.findIndex((entry) => entry.id === props.day.id));
 
-function describeTypes(items) {
-  return (items ?? [])
-    .map((item) => TRAINING_TYPE_LABELS[item.type] ?? item.type)
-    .join(" + ");
-}
-
 const alternatives = computed(() =>
   (props.day.alternatives ?? []).map((items, index) => ({
     key: `alternative-${index}`,
     index,
-    label: describeTypes(items) || `备选方案 ${index + 1}`,
+    label: trainingTypeText(items) || `备选方案 ${index + 1}`,
     detail: "采用后按当前能力档位重建训练内容",
   })),
 );

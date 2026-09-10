@@ -40,4 +40,13 @@ describe("Web 界面层边界", () => {
     expect(outsideStores.length).toBeGreaterThan(5);
     expect(readSources(outsideStores)).not.toMatch(/\blocalStorage\b/u);
   });
+
+  it("日历日口径由 core 提供，页面不自己推算日期", () => {
+    const code = readSources();
+
+    // 课表日期是 UTC 日历日：今天用 todayIso()、比赛日吸附用 nextSundayIso()
+    // （时间戳如 updatedAt: new Date().toISOString() 不算日历日运算，不受此约束）
+    expect(code).not.toMatch(/toISOString\(\)\s*\.\s*slice\(/u);
+    expect(code).not.toMatch(/\bgetUTCDay\b|\bsetUTCDate\b|\bgetUTCDate\b|\bDate\.UTC\b/u);
+  });
 });

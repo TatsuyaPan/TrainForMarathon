@@ -10,8 +10,10 @@ import {
   getHomeSummary,
   getSetupState,
   mergeProgressRecords,
+  nextSundayIso,
   resetSetup,
   todayIso,
+  trainingTypeText,
 } from "../src/workflow.js";
 import { calculateTrainingPaces } from "../src/pace.js";
 import { parseWorkoutDsl } from "../src/dsl/registry.js";
@@ -128,5 +130,49 @@ describe("跨端共用的定位与合并规则", () => {
   it("会话状态文案覆盖全部状态，且各状态说法不重复", () => {
     expect(Object.keys(SESSION_STATUS_LABELS).sort()).toEqual(["done", "planned", "skipped"]);
     expect(new Set(Object.values(SESSION_STATUS_LABELS)).size).toBe(3);
+  });
+});
+
+describe("跨端共用的日期与训练类型说法", () => {
+  it("比赛日向后吸附到最近的周日", () => {
+    expect(nextSundayIso("2026-11-15")).toBe("2026-11-15"); // 已是周日：原样返回
+    expect(nextSundayIso("2026-11-16")).toBe("2026-11-22"); // 周一 → 下个周日
+    expect(nextSundayIso("2026-11-21")).toBe("2026-11-22"); // 周六 → 次日
+    expect(nextSundayIso("2026-09-30")).toBe("2026-10-04"); // 跨月
+    expect(nextSundayIso("2026-12-31")).toBe("2027-01-03"); // 跨年
+    // 非法输入不猜测：原样返回，由模板校验报错
+    expect(nextSundayIso("2026-02-31")).toBe("2026-02-31");
+    expect(nextSundayIso("")).toBe("");
+  });
+
+  it("吸附后的比赛日能被课表模板接受", async () => {
+    const service = new DefaultTrainingDataService(new MemoryStore());
+    const athlete = await ensureAthlete(service);
+
+    // 2026-09-30 是周三，模板要求周日——直接传会被拒绝，不静默改日期
+    await expect(
+      createSetup(service, athlete, {
+        templateId: "20-week",
+        raceDate: "2026-09-30",
+        thresholdPaceSecondsPerKm: 240,
+        maxWeeklyKm: 60,
+      }),
+    ).rejects.toThrow("Sunday");
+
+    const plan = await createSetup(service, athlete, {
+      templateId: "20-week",
+      raceDate: nextSundayIso("2026-09-30"),
+      thresholdPaceSecondsPerKm: 240,
+      maxWeeklyKm: 60,
+    });
+    expect(plan.raceDate).toBe("2026-10-04");
+  });
+
+  it("训练类型说法统一：按顺序去重、未知类型回退原记号", () => {
+    expect(trainingTypeText([{ type: "T" }, { type: "E" }, { type: "R" }])).toBe("阈值跑 + 轻松跑 + 重复跑");
+    expect(trainingTypeText([{ type: "T" }, { type: "E" }, { type: "T" }])).toBe("阈值跑 + 轻松跑");
+    expect(trainingTypeText([{ type: "REST" }, { type: "REST" }])).toBe("休息");
+    expect(trainingTypeText([{ type: "XYZ" }])).toBe("XYZ");
+    expect(trainingTypeText([])).toBe("");
   });
 });

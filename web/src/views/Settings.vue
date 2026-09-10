@@ -113,8 +113,10 @@ import {
   formatRaceTime,
   getSetupState,
   listSetupTemplates,
+  nextSundayIso,
   parseRaceTime,
   resetSetup,
+  todayIso,
 } from "@core";
 import { getAthlete, invalidateAthlete, service } from "../app-context.js";
 import { notifyError, notifySuccess } from "../ui-feedback.js";
@@ -125,7 +127,7 @@ const templates = ref([]);
 const saving = ref(false);
 const paceMode = ref("vdot");
 const skipFitness = ref(false);
-const today = new Date().toISOString().slice(0, 10);
+const today = todayIso();
 
 const form = reactive({
   name: "",
@@ -145,16 +147,6 @@ const templateLabel = computed(() => {
   return t?.name ?? athlete.value?.templateId ?? "";
 });
 
-function snapToSunday(isoDate) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
-  if (!match) return isoDate;
-  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
-  const day = date.getUTCDay();
-  if (day === 0) return isoDate;
-  date.setUTCDate(date.getUTCDate() + (7 - day));
-  return date.toISOString().slice(0, 10);
-}
-
 function onDistanceChange(result) {
   const d = COMMON_RACE_DISTANCES.find((item) => item.key === result.distanceKey);
   if (d) result.distanceM = d.meters;
@@ -170,7 +162,7 @@ async function save() {
     const a = await getAthlete();
     const config = {
       templateId: form.templateId,
-      raceDate: snapToSunday(form.raceDate),
+      raceDate: nextSundayIso(form.raceDate),
       maxWeeklyKm: form.maxWeeklyKm,
     };
     if (!skipFitness.value) {

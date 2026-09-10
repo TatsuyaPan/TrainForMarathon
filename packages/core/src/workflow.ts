@@ -150,6 +150,17 @@ export const TRAINING_TYPE_LABELS: Record<string, string> = {
   TEST: "测试",
 };
 
+/**
+ * 训练类型的中文描述：按课表顺序去重后拼接（如 "T + R"），未知类型回退为原记号。
+ *
+ * 训练日卡片、调整课表对话框等界面共用这一套说法，
+ * 避免同一天在不同页面被写成不同的中文类型。
+ */
+export function trainingTypeText(items: readonly { type: string }[]): string {
+  const labels = (items ?? []).map((item) => TRAINING_TYPE_LABELS[item.type] ?? item.type);
+  return [...new Set(labels)].join(" + ");
+}
+
 export const PROGRESS_STATUS_LABELS: Record<ProgressStatus, string> = {
   completed: "完成",
   partial: "部分完成",
@@ -182,6 +193,24 @@ export function listSetupTemplates(): SetupTemplate[] {
 
 /** 今天（UTC 日历日，与核心库课表日期口径一致） */
 export function todayIso(date: Date = new Date()): string {
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * 把日期向后吸附到最近的周日——课表模板要求比赛日落在周日。
+ *
+ * 已是周日返回原值；无法解析或不存在的日期原样返回，交给 `instantiatePlan`
+ * 报出明确错误，不在这里静默改成另一个日期。各端共用这一条日期规则。
+ */
+export function nextSundayIso(isoDate: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(String(isoDate ?? ""));
+  if (!match) return isoDate;
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  // Date.UTC 会把 2 月 31 日滚到 3 月；往返不一致说明日期本身不存在
+  if (date.toISOString().slice(0, 10) !== isoDate) return isoDate;
+  const weekday = date.getUTCDay();
+  if (weekday === 0) return isoDate;
+  date.setUTCDate(date.getUTCDate() + (7 - weekday));
   return date.toISOString().slice(0, 10);
 }
 

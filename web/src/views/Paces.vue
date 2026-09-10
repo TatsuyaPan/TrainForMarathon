@@ -101,6 +101,7 @@ import {
   lookupBeginnerRow,
   parseRaceTime,
   sixSecondPaceRows,
+  todayIso,
   vdotFromRace,
   vdotPaceRows,
 } from "@core";
@@ -108,7 +109,7 @@ import { fitnessSavedHint, saveAthleteFitness } from "../app-context.js";
 import { notifyError, notifySuccess } from "../ui-feedback.js";
 
 const mode = ref("vdot");
-const today = new Date().toISOString().slice(0, 10);
+const today = todayIso();
 const sixMin = ref(4);
 const sixSec = ref(0);
 const sixResult = ref(null);
