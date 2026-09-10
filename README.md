@@ -12,3 +12,35 @@
 最新版本会发布在[https://tatsuyapan.github.io/TrainForMarathon/][发布地址]
 
 [发布地址]:https://tatsuyapan.github.io/TrainForMarathon/
+
+## 项目结构
+
+- `packages/core`：平台无关的训练模型、课表、会话生命周期与统计。
+- `web`：Vue 3 + TDesign Web 应用，使用浏览器本地存储。
+- `ebook/src`：课程正文与图片源文件。
+
+## 训练会话生命周期
+
+一个训练日可以有零到多个 `TrainingSession`；一次训练最多对应一份实际训练记录：
+
+```text
+planned（待完成）
+  ├─ done（实际内容、距离、时长、RPE、日志、完成时间）
+  └─ skipped（未进行，不产生训练记录）
+```
+
+同日多次训练会先聚合为一条日进度：全部完成为“已完成”，全部未进行为“未进行”，状态混合或仍有待完成训练为“部分完成”。
+
+## 开发验证
+
+```bash
+npm install
+npm test
+npm run typecheck
+npm run build
+
+cd web
+npm install
+npm test
+npm run build
+```
