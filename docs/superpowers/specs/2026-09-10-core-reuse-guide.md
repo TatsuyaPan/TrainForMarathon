@@ -75,9 +75,9 @@ Web 参考实现：`web/src/stores/local-storage-store.js`；小程序参考实�
 | 界面 | 核心调用 | Web 参考 |
 | --- | --- | --- |
 | 首次配置 / 我的 | `getSetupState`、`createSetup`、`updateAthleteFitness`、`resetSetup`、`listSetupTemplates` | `web/src/views/Settings.vue` |
-| 训练周期（首页） | `getHomeSummary`、`findPlanWeek`、`findTodayTraining`、`calculateWeekStats`、`listPlanTemplates` | `web/src/views/TrainingCalendar.vue` |
+| 训练周期（首页） | `getHomeSummary`、`findPlanWeek`、`findTodayTraining`、`calculateWeekStats`、`listPlanTemplates`、`planEndsWithRaceDay`（锚点日期是比赛日还是周期结束日）、`trainingDayMark` | `web/src/views/TrainingCalendar.vue` |
 | 训练周 | `findPlanWeek`、`formatTrainingDay`、`sessionsToProgress` | `web/src/views/TrainingWeek.vue` |
-| 训练日（零到多次训练） | `ensureDaySessions`、`addExtraSession`、`removeSession`、`skipSession`、`syncDayPlannedWorkout`、`setSessionPlannedWorkout` | `web/src/views/TrainingDay.vue` |
+| 训练日（零到多次训练） | `ensureDaySessions`、`addExtraSession`、`removeSession`、`skipSession`、`syncDayPlannedWorkout`、`setSessionPlannedWorkout`、`summarizeDaySessions`（当日小结） | `web/src/views/TrainingDay.vue` |
 | 训练记录 | `createSessionRecordForm`、`toCompleteSessionInput`、`completeSession` | `web/src/views/SessionRecord.vue` |
 | 课表编辑 | `parseWorkoutDsl`、`serializeWorkout`、`validateWorkout`、`insertSegment`/`removeSegment`/`moveSegment`/`replaceSegment`/`duplicateSegment`/`moveSegmentTo`、`addPhase`/`removePhase`、`createDefaultSegment` | `web/src/components/WorkoutEditor.vue`、`CourseStructureEditor.vue` |
 | 课表调整 | `swapTrainingDays`、`applyDayAlternative`、`setDayWorkout` | `web/src/components/DayAdjustDialog.vue` |
@@ -125,7 +125,7 @@ Web 参考实现：`web/src/stores/local-storage-store.js`；小程序参考实�
 
 ## 7. 复用是否成功的判定
 
-- core 侧：`npm test && npm run typecheck && npm run build` 全绿（当前 196 项测试 / 28 个文件）。
+- core 侧：`npm test && npm run typecheck && npm run build` 全绿（当前 222 项测试 / 30 个文件；Web 另有一套组件与浏览器验收）。
 - 平台侧：只用 `DataStore` + `TrainingDataService` 就能跑通「配置 → 生成课表 → 完成一次训练 → 记录实际内容 → 追加第二次训练 → 刷新后仍在」。
   Web 已经用 `web/test/e2e_full_journey.py` 把这条链固化下来，小程序可以照抄同样的断言顺序。
 - 反向检查：平台侧代码里不应该再出现配速推算、VDOT、DSL 解析、会话聚合等业务规则——出现即代表该逻辑没有复用 core。

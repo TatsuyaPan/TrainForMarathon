@@ -15,7 +15,7 @@
         </t-tag>
       </t-typography-title>
       <p class="muted">
-        {{ templateName }} · 共 {{ weekRows.length }} 周 · 比赛日 {{ plan.raceDate }}
+        {{ templateName }} · 共 {{ weekRows.length }} 周 · {{ anchorLabel }} {{ plan.raceDate }}
         <t-button v-if="currentWeek" data-testid="view-current-week" size="small" variant="text" @click="openWeek(currentWeek.week)">
           查看本周
         </t-button>
@@ -83,6 +83,7 @@ import {
   getHomeSummary,
   intensityBarStyle,
   listSetupTemplates,
+  planEndsWithRaceDay,
   todayIso,
   trainingDayMark,
 } from "@core";
@@ -99,6 +100,8 @@ const weekStats = ref(null);
 const currentWeek = ref(null);
 const totalCheckins = ref(0);
 const templateName = ref("");
+/** 五周循环计划没有比赛日，锚点日期只是这一轮循环的结束日 */
+const anchorLabel = computed(() => (plan.value && planEndsWithRaceDay(plan.value) ? "比赛日" : "周期结束日"));
 
 /** 周期内按周分行：每行 7 天，左侧周次/阶段 */
 const weekRows = computed(() => {

@@ -4,6 +4,7 @@ import {
   TWENTY_WEEK_PLAN,
   getPlanTemplate,
   listPlanTemplates,
+  listSetupTemplates,
   validatePlanTemplate,
 } from "../src/index.js";
 
@@ -39,6 +40,14 @@ describe("built-in plan templates", () => {
     expect(listPlanTemplates().map(({ id }) => id)).toEqual(["20-week", "5-week-cycle"]);
     expect(getPlanTemplate("5-week-cycle")).toEqual(FIVE_WEEK_PLAN);
     expect(() => getPlanTemplate("missing")).toThrowError(/Unknown plan template/);
+  });
+
+  it("标注计划最后一天是否是比赛日", () => {
+    const byId = new Map(listSetupTemplates().map((template) => [template.id, template]));
+    // 二十周计划以比赛收尾
+    expect(byId.get("20-week")?.endsWithRaceDay).toBe(true);
+    // 五周循环没有比赛：最后一天仍是训练日，锚点只是周期结束
+    expect(byId.get("5-week-cycle")?.endsWithRaceDay).toBe(false);
   });
 
   it("returns isolated templates from the registry", () => {

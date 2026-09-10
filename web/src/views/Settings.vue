@@ -15,7 +15,7 @@
   <t-card v-if="athlete && hasPlan" :bordered="true" style="margin-top: 12px">
     <t-typography-title level="h5">当前配置</t-typography-title>
     <div class="kv"><span class="muted">昵称</span><span>{{ athlete.name || "未设置" }}</span></div>
-    <div class="kv"><span class="muted">计划</span><span>{{ templateLabel }} · 比赛日 {{ athlete.raceDate }}</span></div>
+    <div class="kv"><span class="muted">计划</span><span>{{ templateLabel }} · {{ anchorLabel }} {{ athlete.raceDate }}</span></div>
     <div class="kv">
       <span class="muted">配速基准</span>
       <span>{{ athlete.vdot ? `VDOT ${athlete.vdot.toFixed(1)}${athlete.isBeginner ? "（新手表）" : ""}` : formatPace(athlete.thresholdPaceSecondsPerKm) }}</span>
@@ -78,8 +78,8 @@
         </t-select>
       </t-form-item>
 
-      <t-form-item label="比赛日期（必填，须为周日；非周日自动校正）">
-        <t-date-picker v-model="form.raceDate" placeholder="选择比赛日" style="width: 200px" />
+      <t-form-item :label="`${formAnchorLabel}（必填，须为周日；非周日自动校正）`">
+        <t-date-picker v-model="form.raceDate" :placeholder="`选择${formAnchorLabel}`" style="width: 200px" />
       </t-form-item>
 
       <t-form-item label="最大周跑量（km）">
@@ -146,6 +146,14 @@ const templateLabel = computed(() => {
   const t = templates.value.find((item) => item.id === athlete.value?.templateId);
   return t?.name ?? athlete.value?.templateId ?? "";
 });
+const templateById = (id) => templates.value.find((item) => item.id === id) ?? null;
+/** 有比赛日的计划说「比赛日」，五周循环这类只是周期结束日 */
+const anchorLabel = computed(() =>
+  templateById(athlete.value?.templateId)?.endsWithRaceDay === false ? "周期结束日" : "比赛日",
+);
+const formAnchorLabel = computed(() =>
+  templateById(form.templateId)?.endsWithRaceDay === false ? "周期结束日期" : "比赛日期",
+);
 
 function onDistanceChange(result) {
   const d = COMMON_RACE_DISTANCES.find((item) => item.key === result.distanceKey);

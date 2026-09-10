@@ -9,6 +9,7 @@ import type {
   PlanDay,
   PlanInstance,
   PlanInstanceDay,
+  PlanTemplate,
   ProgressRecord,
   ProgressStatus,
   SessionOrigin,
@@ -181,6 +182,12 @@ export interface SetupTemplate {
   id: string;
   name: string;
   weekCount: number;
+  /**
+   * 课表最后一天是否是比赛日。
+   * 二十周计划以比赛收尾；五周循环计划只是可反复执行的循环，锚点日期是周期结束日，
+   * 界面据此决定文案（比赛日 / 周期结束日），不再让跑者以为必须有一场比赛。
+   */
+  endsWithRaceDay: boolean;
 }
 
 export function listSetupTemplates(): SetupTemplate[] {
@@ -188,7 +195,25 @@ export function listSetupTemplates(): SetupTemplate[] {
     id: template.id,
     name: template.name,
     weekCount: template.weekCount,
+    endsWithRaceDay: templateEndsWithRaceDay(template),
   }));
+}
+
+/** 模板最后一天是否包含比赛日 */
+function templateEndsWithRaceDay(template: PlanTemplate): boolean {
+  const lastDay = template.weeks.at(-1)?.days.at(-1);
+  return Boolean(lastDay?.items.some((item) => item.type === "RACE"));
+}
+
+/**
+ * 课表锚点日期（`plan.raceDate`）的角色：比赛日还是周期结束日。
+ *
+ * 五周循环计划没有比赛日，最后一天仍是课表里的训练日；界面用这个判断决定说法，
+ * 避免把周期结束日显示成「比赛日」。
+ */
+export function planEndsWithRaceDay(plan: PlanInstance): boolean {
+  const lastDay = plan.weeks.at(-1)?.days.at(-1);
+  return Boolean(lastDay?.items.some((item) => item.type === "RACE"));
 }
 
 /** 今天（UTC 日历日，与核心库课表日期口径一致） */
