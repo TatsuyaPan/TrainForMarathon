@@ -49,6 +49,10 @@ describe("课程展示数据", () => {
     expect(presentation.headline.workLabel).toBe("48 分钟 主训练");
     expect(presentation.headline.recoveryLabel).toBe("9 分钟 恢复");
     expect(presentation.headline.durationLabel).toBe("1 小时 22 分");
+    // 原始数值同时暴露，供界面自行组装文案（避免「主训练 48 分钟 主训练」这类重复）
+    expect(presentation.headline.workDurationSeconds).toBe(48 * 60);
+    expect(presentation.headline.recoveryDurationSeconds).toBe(9 * 60);
+    expect(presentation.headline.recoveryDistanceMeters).toBe(0);
     expect(presentation.headline.repeatCount).toBe(1);
     expect(presentation.headline.mixedUnits).toBe(false);
   });

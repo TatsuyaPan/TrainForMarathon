@@ -188,6 +188,7 @@ export interface WorkoutHeadline {
   durationSeconds: number;
   workDistanceMeters: number;
   workDurationSeconds: number;
+  recoveryDistanceMeters: number;
   recoveryDurationSeconds: number;
   restDurationSeconds: number;
   repeatCount: number;
@@ -417,6 +418,7 @@ function buildHeadline(workout: Workout, totals: WorkoutTotals): WorkoutHeadline
     durationSeconds: totals.knownDurationSeconds,
     workDistanceMeters: totals.workDistanceMeters,
     workDurationSeconds: totals.workDurationSeconds,
+    recoveryDistanceMeters: totals.recoveryDistanceMeters,
     recoveryDurationSeconds: totals.recoveryDurationSeconds,
     restDurationSeconds: totals.restDurationSeconds,
     repeatCount: countRepeatBlocks(workout),
