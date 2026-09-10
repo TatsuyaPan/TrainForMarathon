@@ -127,5 +127,6 @@ Web 参考实现：`web/src/stores/local-storage-store.js`；小程序参考实�
 
 - core 侧：`npm test && npm run typecheck && npm run build` 全绿（当前 222 项测试 / 30 个文件；Web 另有一套组件与浏览器验收）。
 - 平台侧：只用 `DataStore` + `TrainingDataService` 就能跑通「配置 → 生成课表 → 完成一次训练 → 记录实际内容 → 追加第二次训练 → 刷新后仍在」。
-  Web 已经用 `web/test/e2e_full_journey.py` 把这条链固化下来，小程序可以照抄同样的断言顺序。
+  Web 已经用 `web/test/e2e_full_journey.py` 把这条链固化下来，小程序可以照抄同样的断言顺序；
+  另一支 `web/test/e2e_five_week_cycle.py` 覆盖第二个模板（五周循环、没有比赛日）从建立配置到训练日的路径。
 - 反向检查：平台侧代码里不应该再出现配速推算、VDOT、DSL 解析、会话聚合等业务规则——出现即代表该逻辑没有复用 core。
