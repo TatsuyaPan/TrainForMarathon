@@ -64,6 +64,7 @@ export function instantiatePlan(
     templateVersion: template.schemaVersion,
     raceDate: parameters.raceDate,
     paces,
+    maxWeeklyKm: parameters.maxWeeklyKm,
     weeks: template.weeks.map((week) => {
       const weekStart = addUtcDays(firstDayOfRaceWeek, -(week.week - 1) * 7);
       const context: SessionContext = {

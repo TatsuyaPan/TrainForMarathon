@@ -127,6 +127,15 @@ export interface Workout {
  */
 export type SessionStatus = "planned" | "done" | "skipped";
 
+/**
+ * 会话来源：
+ * - `plan`：计划位，由当天课表生成，跟随课表变更同步；
+ * - `extra`：当天临时追加的一次训练（含休息日自行加练），不受课表变更影响。
+ *
+ * 旧数据没有该字段，用 `sessionOrigin()` 推断：seq 0 视为计划位，其余视为临时追加。
+ */
+export type SessionOrigin = "plan" | "extra";
+
 export interface TrainingSession {
   /** `${planId}:${dayId}:${seq}` */
   id: string;
@@ -135,6 +144,8 @@ export interface TrainingSession {
   dayId: string;
   /** 一天内的序号（0 起） */
   seq: number;
+  /** 计划位还是临时追加；缺省按 seq 推断 */
+  origin?: SessionOrigin;
   /** 训练名称/说明 */
   label: string;
   /** 计划内容（生成器/课程库/编辑产生）；临时训练可为空 */
@@ -201,5 +212,7 @@ export interface PlanInstance {
   templateVersion: number;
   raceDate: string;
   paces: import("./pace.js").TrainingPaces;
+  /** 实例化时的周跑量上限（km）；用于按同一档位重建训练日内容 */
+  maxWeeklyKm?: number;
   weeks: PlanInstanceWeek[];
 }

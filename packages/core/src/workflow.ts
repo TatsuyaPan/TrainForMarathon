@@ -11,6 +11,7 @@ import type {
   PlanInstanceDay,
   ProgressRecord,
   ProgressStatus,
+  SessionOrigin,
   TrainingSession,
   TrainingTarget,
   Workout,
@@ -30,6 +31,9 @@ import type { RaceResult } from "./vdot.js";
 import { calculateWeekStats } from "./stats.js";
 import { instantiatePlan } from "./plans/instantiate.js";
 import { listPlanTemplates } from "./plans/registry.js";
+import { selectDayAlternative, swapPlanDays } from "./plans/adjust.js";
+import { buildDayWorkout, workoutPlannedTotals } from "./plans/session-params.js";
+import type { SessionContext } from "./plans/session-params.js";
 
 /** 平台存储接口：三个业务集合的增删查（键为逻辑 id） */
 export interface DataStore {
@@ -394,6 +398,20 @@ function sessionId(planId: string, dayId: string, seq: number): string {
 }
 
 /**
+ * 会话来源：显式字段优先；旧数据按 seq 推断（0 为计划位，其余为临时追加）。
+ * 计划位跟随课表变更同步，临时追加不受课表变更影响。
+ */
+export function sessionOrigin(session: TrainingSession): SessionOrigin {
+  if (session.origin === "plan" || session.origin === "extra") return session.origin;
+  return session.seq === 0 ? "plan" : "extra";
+}
+
+/** 是否为「计划位」会话：当天课表对应的那一次训练（seq 0） */
+export function isPlanSlotSession(session: TrainingSession): boolean {
+  return session.seq === 0 && sessionOrigin(session) === "plan";
+}
+
+/**
  * 惰性生成某训练日的会话：该日尚无会话时，从计划内容生成一个 planned 训练
  * （休息日不生成）；已有则按 seq 排序返回，并把「计划位」同步到当天最新课表。
  */
@@ -412,6 +430,7 @@ export async function ensureDaySessions(
     planId: plan.id,
     dayId: day.id,
     seq: 0,
+    origin: "plan",
     label: day.label,
     plannedWorkout: day.workout,
     status: "planned",
@@ -439,7 +458,7 @@ export async function syncDayPlannedWorkout(
 
   const synced: TrainingSession[] = [];
   for (const session of sessions) {
-    const isPlanSlot = session.seq === 0 && session.status === "planned";
+    const isPlanSlot = isPlanSlotSession(session) && session.status === "planned";
     if (!isPlanSlot || (session.label === day.label && workoutEquals(session.plannedWorkout, day.workout))) {
       synced.push(session);
       continue;
@@ -523,6 +542,7 @@ export async function addExtraSession(
     planId,
     dayId,
     seq,
+    origin: "extra",
     label: input.label,
     plannedWorkout: input.plannedWorkout,
     status: "planned",
@@ -543,10 +563,147 @@ export async function removeSession(
   service: TrainingDataService,
   session: TrainingSession,
 ): Promise<void> {
-  if (session.seq === 0) {
+  if (isPlanSlotSession(session)) {
     throw new Error("计划训练不能移除，请标记为「未进行」");
   }
   await service.deleteSession(session.id);
+}
+
+/**
+ * —— 课表调整（训练节奏调整）——
+ *
+ * 调整只影响计划本身与「计划位」（origin=plan、status=planned）的会话：
+ * 结构化课表会跟着训练内容一起搬动，变成休息日时计划位会话被移除。
+ * 已结束的会话（done / skipped）是既成事实——遇到就直接拒绝调整，
+ * 让用户先处理这一天的记录，避免训练日志被悄悄改写或错位。
+ */
+
+function findWeekOrThrow(plan: PlanInstance, weekNumber: number): PlanInstance["weeks"][number] {
+  const week = plan.weeks.find((entry) => entry.week === weekNumber);
+  if (!week) throw new Error(`找不到第 ${weekNumber} 周`);
+  return week;
+}
+
+function dayAtOrThrow(week: PlanInstance["weeks"][number], dayIndex: number): PlanInstanceDay {
+  if (!Number.isInteger(dayIndex) || dayIndex < 0 || dayIndex > 6) {
+    throw new Error("训练日序号必须在 0-6 之间");
+  }
+  const day = week.days[dayIndex];
+  if (!day) throw new Error("训练日不存在");
+  return day;
+}
+
+async function assertDaysAdjustable(
+  service: TrainingDataService,
+  planId: string,
+  days: readonly PlanInstanceDay[],
+): Promise<void> {
+  for (const day of days) {
+    const sessions = await service.listSessions(planId, day.id);
+    if (sessions.some((session) => session.status !== "planned")) {
+      throw new Error(`${day.date} 已有训练记录，不能调整课表；请先处理这一天的记录`);
+    }
+  }
+}
+
+/** 按当前档位重建当天结构化课表（备选方案只有条目，需要重新生成内容） */
+function sessionContextFor(plan: PlanInstance, week: PlanInstance["weeks"][number]): SessionContext {
+  const derived = week.volume.max > 0 ? week.targetKm.max / week.volume.max : week.targetKm.max;
+  return {
+    paces: plan.paces,
+    weekVolumeKm: week.targetKm.min,
+    maxWeeklyKm: plan.maxWeeklyKm ?? derived,
+  };
+}
+
+function workoutFromDayItems(
+  plan: PlanInstance,
+  week: PlanInstance["weeks"][number],
+  day: PlanInstanceDay,
+): Workout | undefined {
+  const types = day.items
+    .filter((item) => item.type !== "REST" && item.type !== "RACE" && item.type !== "TEST")
+    .map((item) => item.type);
+  return buildDayWorkout(types, sessionContextFor(plan, week));
+}
+
+/** 调整后同步会话：有课表 → 同步计划位；变成休息日 → 移除计划位（保留临时追加与历史） */
+async function syncDayAfterAdjust(
+  service: TrainingDataService,
+  plan: PlanInstance & { id: string },
+  day: PlanInstanceDay,
+): Promise<void> {
+  if (day.workout) {
+    await syncDayPlannedWorkout(service, plan, day);
+    return;
+  }
+  const sessions = await service.listSessions(plan.id, day.id);
+  for (const session of sessions) {
+    if (isPlanSlotSession(session) && session.status === "planned") await service.deleteSession(session.id);
+  }
+}
+
+/**
+ * 调整课表：把同一周内两天的训练内容互换（日期与训练日 id 不变）。
+ * 适合「今天有事，把训练挪到明天」这类节奏调整。
+ */
+export async function swapTrainingDays(
+  service: TrainingDataService,
+  plan: PlanInstance & { id: string },
+  weekNumber: number,
+  firstDayIndex: number,
+  secondDayIndex: number,
+): Promise<PlanInstance & { id: string }> {
+  const week = findWeekOrThrow(plan, weekNumber);
+  const first = dayAtOrThrow(week, firstDayIndex);
+  const second = dayAtOrThrow(week, secondDayIndex);
+  if (first.id === second.id) throw new Error("请选择另一天进行互换");
+  await assertDaysAdjustable(service, plan.id, [first, second]);
+
+  const updated = swapPlanDays(plan, weekNumber, firstDayIndex, secondDayIndex);
+  await service.savePlan(updated);
+  const updatedWeek = findWeekOrThrow(updated, weekNumber);
+  await syncDayAfterAdjust(service, updated, dayAtOrThrow(updatedWeek, firstDayIndex));
+  await syncDayAfterAdjust(service, updated, dayAtOrThrow(updatedWeek, secondDayIndex));
+  return updated;
+}
+
+/**
+ * 调整课表：采用当天声明的备选训练方案，并按当前档位重建结构化课表。
+ */
+export async function applyDayAlternative(
+  service: TrainingDataService,
+  plan: PlanInstance & { id: string },
+  weekNumber: number,
+  dayIndex: number,
+  alternativeIndex: number,
+): Promise<PlanInstance & { id: string }> {
+  const week = findWeekOrThrow(plan, weekNumber);
+  const day = dayAtOrThrow(week, dayIndex);
+  await assertDaysAdjustable(service, plan.id, [day]);
+
+  const switched = selectDayAlternative(plan, weekNumber, dayIndex, alternativeIndex);
+  const switchedWeek = findWeekOrThrow(switched, weekNumber);
+  const target = dayAtOrThrow(switchedWeek, dayIndex);
+  const workout = workoutFromDayItems(switched, switchedWeek, target);
+  const totals = workout ? workoutPlannedTotals(workout) : undefined;
+  const updatedDay: PlanInstanceDay = {
+    ...target,
+    workout,
+    plannedDistanceKm: totals && totals.distanceKm > 0 ? totals.distanceKm : undefined,
+    plannedDurationMinutes: totals && totals.durationMinutes > 0 ? totals.durationMinutes : undefined,
+  };
+  const updated: PlanInstance & { id: string } = {
+    ...switched,
+    weeks: switched.weeks.map((entry) =>
+      entry.week === weekNumber
+        ? { ...entry, days: entry.days.map((candidate, index) => (index === dayIndex ? updatedDay : candidate)) }
+        : entry,
+    ),
+  };
+  await service.savePlan(updated);
+  await syncDayAfterAdjust(service, updated, dayAtOrThrow(findWeekOrThrow(updated, weekNumber), dayIndex));
+  return updated;
 }
 
 /** 会话 → 统计记录：done→completed，skipped→skipped；planned 不计入 */

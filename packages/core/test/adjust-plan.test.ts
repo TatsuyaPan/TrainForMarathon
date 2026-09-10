@@ -57,4 +57,49 @@ describe("swapPlanDays", () => {
     expect(adjusted.weeks[0].days[0]).toMatchObject({ plannedDistanceKm: 12, plannedDurationMinutes: 60 });
     expect(adjusted.weeks[0].days[1].plannedDistanceKm).toBeUndefined();
   });
+
+  it("moves the structured workout with the training content", () => {
+    const plan = instantiatePlan("20-week", {
+      raceDate: "2027-03-21",
+      thresholdPaceSecondsPerKm: 220,
+      maxWeeklyKm: 100,
+    });
+    const [rest, training] = plan.weeks[0].days;
+    expect(rest.workout).toBeUndefined();
+    expect(training.workout).toBeDefined();
+
+    const adjusted = swapPlanDays(plan, 20, 0, 1);
+
+    expect(adjusted.weeks[0].days[0].workout).toEqual(training.workout);
+    expect(adjusted.weeks[0].days[1].workout).toBeUndefined();
+  });
+
+  it("drops the stale workout when switching to an alternative", () => {
+    const plan = instantiatePlan("20-week", {
+      raceDate: "2027-03-21",
+      thresholdPaceSecondsPerKm: 220,
+      maxWeeklyKm: 100,
+    });
+    const original = plan.weeks.find(({ week }) => week === 18)?.days[1];
+    expect(original?.workout).toBeDefined();
+
+    const alternative = selectDayAlternative(plan, 18, 1, 0);
+    const day = alternative.weeks.find(({ week }) => week === 18)?.days[1];
+    expect(day?.items.map((item) => item.type)).toEqual(["E"]);
+    expect(day?.workout).toBeUndefined();
+  });
+
+  it("keeps extra fields on the plan instance after adjustments", () => {
+    const plan = {
+      id: "plan-1",
+      ...instantiatePlan("20-week", {
+        raceDate: "2027-03-21",
+        thresholdPaceSecondsPerKm: 220,
+        maxWeeklyKm: 100,
+      }),
+    };
+    expect(swapPlanDays(plan, 20, 0, 1).id).toBe("plan-1");
+    expect(selectDayAlternative(plan, 18, 1, 0).id).toBe("plan-1");
+    expect(setPlannedWorkout(plan, 20, 1, { distanceKm: 12 }).id).toBe("plan-1");
+  });
 });
