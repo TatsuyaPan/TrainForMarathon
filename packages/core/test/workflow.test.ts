@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DefaultTrainingDataService,
+  SESSION_STATUS_LABELS,
   checkIn,
   createSetup,
   describeWorkout,
@@ -122,5 +123,10 @@ describe("跨端共用的定位与合并规则", () => {
     expect(merged).toHaveLength(2);
     expect(merged.find((record) => record.dayId === "day-1")).toEqual(fromSessions[0]);
     expect(merged.find((record) => record.dayId === "day-2")).toEqual(legacy[1]);
+  });
+
+  it("会话状态文案覆盖全部状态，且各状态说法不重复", () => {
+    expect(Object.keys(SESSION_STATUS_LABELS).sort()).toEqual(["done", "planned", "skipped"]);
+    expect(new Set(Object.values(SESSION_STATUS_LABELS)).size).toBe(3);
   });
 });

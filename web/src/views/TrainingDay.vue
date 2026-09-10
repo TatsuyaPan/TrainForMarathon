@@ -177,6 +177,7 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import {
   LIBRARY_CATEGORY_LABELS,
+  SESSION_STATUS_LABELS,
   TRAINING_TYPE_LABELS,
   addExtraSession,
   createWorkoutPresentation,
@@ -287,7 +288,7 @@ function statusTheme(status) {
 }
 
 function statusText(status) {
-  return status === "done" ? "已完成" : status === "skipped" ? "未进行" : "待完成";
+  return SESSION_STATUS_LABELS[status] ?? SESSION_STATUS_LABELS.planned;
 }
 
 async function skip(session) {

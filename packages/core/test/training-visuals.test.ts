@@ -2,9 +2,21 @@ import { describe, expect, it } from "vitest";
 import {
   INTENSITY_COLORS,
   intensityBarStyle,
+  trainingDayMark,
   workoutIntensities,
 } from "../src/training-visuals.js";
 import { parseWorkoutDsl } from "../src/dsl/registry.js";
+import type { PlanInstanceDay, TrainingTypeId } from "../src/domain.js";
+
+/** 只关心训练类型的最小课表日：记号规则不依赖日期与生成器 */
+function dayWith(...types: TrainingTypeId[]): PlanInstanceDay {
+  return {
+    id: "day-1",
+    date: "2026-09-10",
+    label: "测试日",
+    items: types.map((type) => ({ type })),
+  } as PlanInstanceDay;
+}
 
 describe("训练强度可视化", () => {
   it("色阶：E 绿 → M 黄绿 → T 黄 → I 红 → R 紫 → ST 淡紫", () => {
@@ -40,5 +52,16 @@ describe("训练强度可视化", () => {
     expect(style).toContain(INTENSITY_COLORS.E);
 
     expect(intensityBarStyle(undefined)).toContain("#c3cac5");
+  });
+
+  it("训练日记号：比赛、休息、轻松跑与多类型合并", () => {
+    expect(trainingDayMark(dayWith("RACE", "E"))).toBe("赛");
+    expect(trainingDayMark(dayWith("REST", "REST"))).toBe("休");
+    // 只有轻松跑（含休息）时不虚报强度
+    expect(trainingDayMark(dayWith("E", "REST"))).toBe("E");
+    expect(trainingDayMark(dayWith("M", "E"))).toBe("M");
+    // 多类型按课表顺序合并，去重后拼接
+    expect(trainingDayMark(dayWith("T", "E", "R"))).toBe("T+R");
+    expect(trainingDayMark(dayWith("T", "E", "T"))).toBe("T");
   });
 });

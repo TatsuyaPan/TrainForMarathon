@@ -84,6 +84,7 @@ import {
   intensityBarStyle,
   listSetupTemplates,
   todayIso,
+  trainingDayMark,
 } from "@core";
 import { service } from "../app-context.js";
 import { useTrainingData } from "../composables/useTrainingData.js";
@@ -99,14 +100,6 @@ const currentWeek = ref(null);
 const totalCheckins = ref(0);
 const templateName = ref("");
 
-function typeMark(day) {
-  if (!day) return "";
-  if (day.items.some((item) => item.type === "RACE")) return "赛";
-  if (day.items.every((item) => item.type === "REST")) return "休";
-  const marks = [...new Set(day.items.map((item) => item.type).filter((t) => t !== "REST" && t !== "E"))];
-  return marks.length === 0 ? "E" : marks.join("+");
-}
-
 /** 周期内按周分行：每行 7 天，左侧周次/阶段 */
 const weekRows = computed(() => {
   if (!plan.value) return [];
@@ -119,7 +112,7 @@ const weekRows = computed(() => {
       return {
         date: day.date,
         dayNumber: Number(day.date.slice(8, 10)),
-        mark: typeMark(day),
+        mark: trainingDayMark(day),
         barStyle: intensityBarStyle(day.workout),
         status,
         statusText: status ? PROGRESS_STATUS_LABELS[status] : "",

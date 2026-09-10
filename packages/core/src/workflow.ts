@@ -12,6 +12,7 @@ import type {
   ProgressRecord,
   ProgressStatus,
   SessionOrigin,
+  SessionStatus,
   TrainingSession,
   TrainingTarget,
   Workout,
@@ -153,6 +154,16 @@ export const PROGRESS_STATUS_LABELS: Record<ProgressStatus, string> = {
   completed: "完成",
   partial: "部分完成",
   skipped: "跳过",
+};
+
+/**
+ * 会话状态文案：同一状态在训练日卡片、训练记录页与统计里说法必须一致。
+ * 界面只负责渲染这段文字与自身配色（配色属于各端 UI 库）。
+ */
+export const SESSION_STATUS_LABELS: Record<SessionStatus, string> = {
+  planned: "待完成",
+  done: "已完成",
+  skipped: "未进行",
 };
 
 export interface SetupTemplate {

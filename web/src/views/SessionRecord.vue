@@ -110,6 +110,7 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import {
+  SESSION_STATUS_LABELS,
   completeSession,
   createDefaultWorkout,
   createSessionRecordForm,
@@ -141,7 +142,7 @@ const form = reactive({
   log: "",
 });
 
-const statusText = computed(() => session.value?.status === "done" ? "已记录" : session.value?.status === "skipped" ? "未进行" : "待完成");
+const statusText = computed(() => SESSION_STATUS_LABELS[session.value?.status] ?? SESSION_STATUS_LABELS.planned);
 const plannedTotals = computed(() =>
   session.value?.plannedWorkout
     ? createWorkoutPresentation(session.value.plannedWorkout).headline

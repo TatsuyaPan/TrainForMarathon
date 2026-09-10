@@ -4,7 +4,7 @@
  * 颜色的唯一来源是 `dsl/presentation.ts`（课程展示数据），这里只提供
  * 「强度序列」与「结构色带」两个便捷函数，供训练周/训练日等视图复用。
  */
-import type { DanielsZone, Workout } from "./domain.js";
+import type { DanielsZone, PlanInstanceDay, Workout } from "./domain.js";
 import {
   INTENSITY_COLORS,
   INTENSITY_ORDER,
@@ -20,6 +20,21 @@ export { INTENSITY_COLORS, INTENSITY_ORDER, NEUTRAL_TARGET_COLOR, RECOVERY_COLOR
 /** 训练内容涉及的强度档位（去重、由低到高） */
 export function workoutIntensities(workout?: Workout): DanielsZone[] {
   return workout ? workoutZones(workout) : [];
+}
+
+/**
+ * 课表里的训练日记号：比赛 → 赛，休息 → 休，其余按 E 之外的训练类型合并（例如 T+R）。
+ *
+ * 周期日历、周视图与将来的小程序课表格子共用这一套缩写规则，
+ * 避免同一个训练日在不同页面显示成不同的记号。
+ */
+export function trainingDayMark(day: PlanInstanceDay): string {
+  if (day.items.some((item) => item.type === "RACE")) return "赛";
+  if (day.items.every((item) => item.type === "REST")) return "休";
+  const marks = [
+    ...new Set(day.items.map((item) => item.type).filter((type) => type !== "REST" && type !== "E")),
+  ];
+  return marks.length === 0 ? "E" : marks.join("+");
 }
 
 function round(value: number): number {
