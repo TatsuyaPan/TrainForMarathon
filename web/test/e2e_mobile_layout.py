@@ -163,7 +163,39 @@ with sync_playwright() as playwright:
 
     expect(page.locator(".t-head-menu")).to_be_visible()
     assert not failures, failures
+
+    # 手机端真的编辑一次课程：新建 → 步骤覆盖层 → 改强度 → 加循环 → 保存
+    page.goto(f"{BASE_URL}/#/library/new")
+    page.wait_for_load_state("networkidle")
+    page.get_by_test_id("course-title").fill("手机端编辑课程")
+    page.get_by_test_id("course-goal").fill("有氧基础")
+    page.locator('[data-testid^="segment-row-"]').first.click()
+    expect(page.get_by_test_id("focused-editor")).to_be_visible()
+    overlay_width = overflow(page)
+    shot(page, "editor-step-overlay")
+    assert overlay_width <= 1, f"步骤覆盖层横向溢出 {overlay_width}px"
+
+    page.get_by_test_id("target-zone").select_option("M")
+    page.get_by_test_id("step-editor").get_by_role("button", name="关闭步骤编辑").click()
+    page.get_by_test_id("add-repeat").first.click()
+    expect(page.locator('[data-testid="editor-repeat"]').first).to_be_visible()
+    page.get_by_test_id("save-course").click()
+
+    card = page.locator('[data-testid="course-card"]').filter(has_text="手机端编辑课程")
+    expect(card).to_have_count(1)
+    card.get_by_test_id("toggle-structure").click()
+    expect(card.get_by_test_id("course-structure")).to_be_visible()
+    shot(page, "library-after-edit")
+    assert overflow(page) <= 1, "保存后的课程库出现横向溢出"
+
+    saved = page.evaluate(
+        "JSON.parse(localStorage.getItem('tfm:course-library:v1'))"
+        ".find((course) => course.workout.title === '手机端编辑课程').workout"
+    )
+    assert saved["phases"][0]["segments"][0]["target"]["zone"] == "M", saved
+    assert saved["phases"][0]["segments"][1]["kind"] == "repeat", saved
+
     assert not console_errors, console_errors
     browser.close()
 
-print(f"mobile layout smoke test passed ({len(PAGES)} pages @ {MOBILE['width']}px)")
+print(f"mobile layout & editing smoke test passed ({len(PAGES)} pages @ {MOBILE['width']}px)")
