@@ -64,8 +64,12 @@ import {
   formatPace,
   pacesFromVdot,
 } from "@core";
-import { getAthlete, service } from "../app-context.js";
-import { updateAthleteFitness } from "@core";
+import {
+  clearAthleteFitness,
+  fitnessSavedHint,
+  getAthlete,
+  saveAthleteFitness,
+} from "../app-context.js";
 
 const athlete = ref(null);
 const fitness = computed(() => {
@@ -124,21 +128,16 @@ function promptSetSix() {
   if (input === null) return;
   const value = Number(input);
   if (!Number.isFinite(value) || value <= 0) { window.alert("请输入有效秒数"); return; }
-  updateAthleteFitness(service, { mode: "sixSecond", thresholdPaceSecondsPerKm: Math.round(value) }).then(() => reload());
+  saveAthleteFitness({ mode: "sixSecond", thresholdPaceSecondsPerKm: Math.round(value) })
+    .then(() => reload())
+    .then(fitnessSavedHint)
+    .then((hint) => { if (hint) window.alert(hint.replace(/^；/, "")); });
 }
 
 async function clearFitness() {
   if (!window.confirm("清除能力后将无法直接生成课表（需重新填写）。确定清除？")) return;
-  const a = athlete.value;
-  await service.saveAthleteProfile({
-    ...a,
-    thresholdPaceSecondsPerKm: undefined,
-    vdot: undefined,
-    raceResults: undefined,
-    isBeginner: undefined,
-    updatedAt: new Date().toISOString(),
-  });
-  reload();
+  await clearAthleteFitness();
+  await reload();
 }
 
 async function reload() {

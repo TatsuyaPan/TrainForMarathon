@@ -102,8 +102,7 @@ import {
   lookupBeginnerRow,
   vdotFromRace,
 } from "@core";
-import { getAthlete, service } from "../app-context.js";
-import { updateAthleteFitness } from "@core";
+import { fitnessSavedHint, saveAthleteFitness } from "../app-context.js";
 
 const mode = ref("vdot");
 const today = new Date().toISOString().slice(0, 10);
@@ -167,8 +166,12 @@ function calcSix() {
 
 async function saveSix() {
   const threshold = sixMin.value * 60 + sixSec.value;
-  await updateAthleteFitness(service, { mode: "sixSecond", thresholdPaceSecondsPerKm: threshold });
-  window.alert("已保存为我的能力（6 秒规则）");
+  try {
+    await saveAthleteFitness({ mode: "sixSecond", thresholdPaceSecondsPerKm: threshold });
+    window.alert(`已保存为我的能力（6 秒规则）${await fitnessSavedHint()}`);
+  } catch (e) {
+    window.alert(e.message);
+  }
 }
 
 function calcVdot() {
@@ -223,12 +226,18 @@ async function saveVdot() {
       parsed.push({ distanceM: result.distanceM, timeSeconds, label: result.note || undefined, date: result.date });
     }
   }
-  await updateAthleteFitness(service, {
-    mode: "vdot",
-    raceResults: parsed,
-    isBeginner: vdotResult.value?.vdot <= 30,
-  });
-  window.alert(`已保存为我的能力（VDOT ${vdotResult.value.vdot.toFixed(1)}${vdotResult.value.vdot <= 30 ? "，新手表" : ""}）`);
+  try {
+    await saveAthleteFitness({
+      mode: "vdot",
+      raceResults: parsed,
+      isBeginner: vdotResult.value?.vdot <= 30,
+    });
+    window.alert(
+      `已保存为我的能力（VDOT ${vdotResult.value.vdot.toFixed(1)}${vdotResult.value.vdot <= 30 ? "，新手表" : ""}）${await fitnessSavedHint()}`,
+    );
+  } catch (e) {
+    window.alert(e.message);
+  }
 }
 </script>
 
