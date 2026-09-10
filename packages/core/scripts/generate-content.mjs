@@ -36,7 +36,7 @@ const documents = await Promise.all(manifest.map(async (entry, index) => {
   if (seen.has(entry.id)) throw new Error(`Duplicate content id: ${entry.id}`);
   seen.add(entry.id);
   const sourcePath = resolve(repositoryRoot, entry.path);
-  const sourceMarkdown = await readFile(sourcePath, "utf8");
+  const sourceMarkdown = (await readFile(sourcePath, "utf8")).replace(/\r\n/gu, "\n");
   const { markdown, assets } = compileMarkdown(sourcePath, sourceMarkdown);
   await Promise.all(assets.map((asset) => access(resolve(repositoryRoot, asset.id))));
   const title = entry.title ?? /^#\s+(.+)$/m.exec(markdown)?.[1]?.trim();
