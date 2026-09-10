@@ -6,7 +6,8 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "test": "vitest run",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "verify": "npm test && npm run typecheck && npm run build && npm --prefix web test && npm --prefix web run build"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -15,9 +15,15 @@
 
 ## 项目结构
 
-- `packages/core`：平台无关的训练模型、课表、会话生命周期与统计。
+- `packages/core`：平台无关的训练模型、课表、会话生命周期与统计（`@train-for-marathon/core`）。
 - `web`：Vue 3 + TDesign Web 应用，使用浏览器本地存储。
-- `ebook/src`：课程正文与图片源文件。
+- `spec/dsl`：按版本冻结的 Workout DSL 原始规范。
+- `ebook/src`：应用读取的课程正文与图片（见 `packages/core/content-manifest.json`）。
+- `src`：GitBook 站点源文件（`SUMMARY.md`、`book.json`），构建产物在 `docs/`。
+- `docs/superpowers`：设计文档与实施计划。
+
+> `src` 与 `ebook/src` 当前是同一份内容的两份副本：前者供 GitBook 站点，后者供应用与核心包读取。
+> 修改课程正文时两边都要更新，否则站点与应用会不一致。
 
 ## 训练会话生命周期
 
@@ -31,16 +37,42 @@ planned（待完成）
 
 同日多次训练会先聚合为一条日进度：全部完成为“已完成”，全部未进行为“未进行”，状态混合或仍有待完成训练为“部分完成”。
 
+## Workout DSL
+
+课表结构（AST）是唯一事实来源，DSL 只在导入、导出与展示时序列化。规范按版本冻结，实现必须以冻结文本为准：
+
+- 版本政策与索引：[`spec/dsl/README.md`](spec/dsl/README.md)
+- v1 冻结规范：[`spec/dsl/v1/workout-dsl-v1.md`](spec/dsl/v1/workout-dsl-v1.md)
+- v1 解析器 `packages/core/src/dsl/v1.ts`；版本识别与分发 `packages/core/src/dsl/registry.ts`
+
+最小合法课程是 `GOAL:有氧基础` 加一段 `MS:40min@E`：`GOAL` 必填，`TITLE`、`NOTE` 可留空。
+未声明 `WORKOUT/n` 时使用平台当前最新版；显式声明了不支持的版本会直接报错，不猜测、不降级。
+
 ## 开发验证
 
 ```bash
 npm install
-npm test
-npm run typecheck
-npm run build
+npm run verify          # core 测试 + 类型检查 + 构建，然后 web 测试与 web 构建
+```
 
-cd web
-npm install
-npm test
-npm run build
+分开执行：
+
+```bash
+npm test                # core 单元测试（packages/core/test）
+npm run typecheck
+npm run build           # 生成 packages/core/dist，web 依赖该产物
+
+npm --prefix web test        # web 单元与组件测试（happy-dom）
+npm --prefix web run build
+```
+
+浏览器冒烟测试（Playwright，需要先构建并起本地预览）：
+
+```bash
+npm --prefix web run build
+npm --prefix web run preview      # 保持运行，监听 4173
+python web/test/e2e_first_run.py
+python web/test/e2e_session_lifecycle.py
+python web/test/e2e_course_library.py
+python web/test/e2e_settings_fitness.py
 ```
