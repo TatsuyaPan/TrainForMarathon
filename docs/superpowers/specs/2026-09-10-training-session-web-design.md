@@ -69,6 +69,24 @@ A dedicated `SessionRecord.vue` route owns the unique record form for one sessio
 
 The reusable workout composition UI is extracted into `WorkoutEditorPanel.vue`. Both the existing plan editor and the session record page use it so that runners never need to enter the internal Workout DSL. DSL import/export remains an advanced function of the plan editor and is not the primary record input.
 
+### Plan adjustment
+
+Running life is not static: the same training day sometimes has to move. The training day page exposes **调整课表**, offering two operations and never guessing silently.
+
+- **Swap with another day of the same week** — training content (label, items, structured Workout, planned distance/duration) moves to the other day. Dates and day identifiers stay in place, so an existing record never changes its date.
+- **Adopt a declared alternative** — the day's items switch to the alternative, and the structured Workout is rebuilt for the runner's current volume tier (same `buildDayWorkout` context used at instantiation). Alternatives carry no Workout themselves, so a stale one is dropped instead of kept.
+
+Rules enforced in core (`swapTrainingDays` / `applyDayAlternative`):
+
+| Situation | Behaviour |
+| --- | --- |
+| The day already has `done` / `skipped` sessions | Adjustment is refused with a readable reason and the stored plan is untouched |
+| The day becomes a rest day | Its plan-slot session is deleted; extra sessions the runner added stay |
+| The day is (still) a training day | The plan-slot session is synced to the new content; finished sessions are never rewritten |
+| A rest day | Never carries a structured Workout — asserted by the browser smoke test |
+
+Sessions therefore carry an explicit origin: `plan` (the slot that follows the plan) or `extra` (something the runner added, including on a rest day). `sessionOrigin()` infers the value for legacy rows from the sequence, and `isPlanSlotSession()` is the single rule shared by core, Web, and the future mini program: only plan slots are protected from removal and follow plan edits.
+
 ## Data Flow
 
 ```text

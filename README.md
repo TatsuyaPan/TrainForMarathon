@@ -76,4 +76,5 @@ python web/test/e2e_session_lifecycle.py
 python web/test/e2e_course_library.py
 python web/test/e2e_settings_fitness.py
 python web/test/e2e_mobile_layout.py
+python web/test/e2e_plan_adjust.py
 ```
