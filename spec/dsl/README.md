@@ -37,6 +37,8 @@ spec/dsl/
 4. 在 `packages/core/src/dsl/index.ts` 补导出版本明确的解析入口；
 5. 跑 `npm test`：`packages/core/test/dsl-spec-conformance.test.ts` 会自动要求「规范目录 ↔ 注册表」一一对应，并把新版本规范的合法示例全部往返一遍。
 
+新版本可以**复用**旧版本的实现（例如 `v2.ts` 内部 `import { parseWorkoutDslV1 } from "./v1.js"`，只覆盖变化的部分），这是推荐做法；但复用只能通过导入，不能回头修改已冻结版本的实现。
+
 ## 相关文档
 
 - 设计背景与课程库模型：[课程库与 Workout DSL 重构设计](../../docs/superpowers/specs/2026-09-10-course-library-dsl-design.md)
