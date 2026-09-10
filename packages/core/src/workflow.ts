@@ -4,7 +4,25 @@
  */
 import type { AthleteProfile } from "./athlete.js";
 import { createAthlete } from "./athlete.js";
-import type { PlanDay, PlanInstance, PlanInstanceDay, ProgressRecord, ProgressStatus, TrainingSession, Workout, WorkoutSegment, WorkoutStep } from "./domain.js";
+import type {
+  Load,
+  PlanDay,
+  PlanInstance,
+  PlanInstanceDay,
+  ProgressRecord,
+  ProgressStatus,
+  TrainingSession,
+  TrainingTarget,
+  Workout,
+  WorkoutPhaseRole,
+  WorkoutSegment,
+} from "./domain.js";
+import {
+  formatDistanceLabel,
+  formatDurationLabel,
+  formatLoadLabel,
+  formatTargetShortLabel,
+} from "./dsl/presentation.js";
 import type { TrainingPaces } from "./pace.js";
 import { formatPace } from "./pace.js";
 import { assessFromResults } from "./vdot.js";
@@ -517,23 +535,17 @@ export interface FormattedTrainingDay {
 }
 
 /** 负荷文本：6.4km / 800m / 8min */
-function loadText(load: WorkoutStep["load"]): string {
-  if (load.type === "time") return `${load.minutes}min`;
-  const meters = load.meters;
-  return meters % 1000 === 0 && meters >= 1000
-    ? `${meters / 1000}km`
-    : `${meters}m`;
+function loadText(load: Load): string {
+  return load.type === "time" && load.seconds % 60 === 0
+    ? `${load.seconds / 60}min`
+    : load.type === "time"
+      ? formatDurationLabel(load.seconds)
+      : formatDistanceLabel(load.meters);
 }
 
-function intensityZoneText(intensity: WorkoutStep["intensity"]): string {
-  if (intensity.type === "pace") return intensity.zone;
-  if (intensity.type === "paceRange") return "自定义配速";
-  if (intensity.type === "heartRate") {
-    return intensity.minPercent !== undefined && intensity.maxPercent !== undefined
-      ? `HR${intensity.minPercent}-${intensity.maxPercent}%`
-      : "心率";
-  }
-  return intensity.label;
+function targetText(target: TrainingTarget): string {
+  if (target.type === "daniels") return target.zone;
+  return formatTargetShortLabel(target);
 }
 
 /** 配速区间文本（如 4:05–4:20/km）；E/M 标注估算 */
@@ -545,40 +557,50 @@ function paceZoneText(zone: string, paces: TrainingPaces): string {
   return zone === "E" || zone === "M" ? `${label}（估算）` : label;
 }
 
-function describeSegment(segment: WorkoutSegment, paces: TrainingPaces, depth: number): string {
-  if (segment.kind === "set") {
-    const inner = segment.segments.map((s) => describeSegment(s, paces, depth + 1)).join(" + ");
-    return `(${inner})×${segment.repeats}`;
+/**
+ * 描述一个分部（循环展开为一行括号内序列）。
+ * 恢复与休息是一等步骤，与跑步步骤同样逐条呈现。
+ */
+function describeSegment(
+  segment: WorkoutSegment,
+  paces: TrainingPaces,
+  role: WorkoutPhaseRole,
+  depth: number,
+): string {
+  if (segment.kind === "repeat") {
+    const inner = segment.segments
+      .map((child) => describeSegment(child, paces, role, depth + 1))
+      .join(" + ");
+    return `${segment.repetitions} × （${inner}）`;
+  }
+  if (segment.kind === "rest") {
+    return `${formatDurationLabel(segment.durationSeconds)} 被动休息`;
+  }
+  if (segment.kind === "recovery") {
+    return `${formatLoadLabel(segment.load)} 主动恢复（慢跑）`;
   }
   const parts: string[] = [];
-  if (segment.phase === "warmup") parts.push("热身");
-  if (segment.phase === "cooldown") parts.push("冷身");
-  parts.push(`${loadText(segment.load)}@${intensityZoneText(segment.intensity)}`);
-  if (segment.intensity.type === "pace") {
-    const paceText = paceZoneText(segment.intensity.zone, paces);
+  if (role === "warmup") parts.push("热身");
+  if (role === "cooldown") parts.push("冷身");
+  parts.push(`${loadText(segment.load)}@${targetText(segment.target)}`);
+  if (segment.target.type === "daniels") {
+    const paceText = paceZoneText(segment.target.zone, paces);
     if (paceText) parts.push(paceText);
-  } else if (segment.intensity.type === "paceRange") {
+  } else if (segment.target.type === "pace-range") {
     parts.push(
-      `${formatPace(segment.intensity.slowSecondsPerKm)}–${formatPace(segment.intensity.fastSecondsPerKm)}/km（自定义）`,
+      `${formatPace(segment.target.fastSecondsPerKm)}–${formatPace(segment.target.slowSecondsPerKm)}（自定义配速）`,
     );
+  } else if (segment.target.type === "heart-rate") {
+    parts.push(
+      segment.target.basis === "reserve"
+        ? `储备心率 ${segment.target.minPercent}-${segment.target.maxPercent}%`
+        : `最大心率 ${segment.target.minPercent}-${segment.target.maxPercent}%`,
+    );
+  } else if (segment.target.type === "heart-rate-absolute") {
+    parts.push(`心率 ${segment.target.minBpm}-${segment.target.maxBpm}bpm`);
   }
   if (segment.rpe !== undefined) parts.push(`RPE${segment.rpe}`);
   if (segment.inclinePercent !== undefined) parts.push(`坡度${segment.inclinePercent}%`);
-  if (segment.rest) {
-    const restText =
-      segment.rest.type === "time"
-        ? `${segment.rest.minutes}min`
-        : segment.rest.type === "distance"
-          ? `${segment.rest.meters}m`
-          : "慢跑";
-    const mode =
-      segment.rest.type === "jog"
-        ? "慢跑"
-        : segment.rest.mode === "jog"
-          ? "慢跑"
-          : "休息";
-    parts.push(`+${restText}${mode}`);
-  }
   return parts.join(" · ");
 }
 
@@ -590,7 +612,9 @@ export function describeWorkout(
 ): string[] {
   const lines: string[] = [];
   if (workout.goal && options.includeGoal !== false) lines.push(`目标：${workout.goal}`);
-  lines.push(...workout.segments.map((segment) => describeSegment(segment, paces, 0)));
+  for (const phase of workout.phases) {
+    lines.push(...phase.segments.map((segment) => describeSegment(segment, paces, phase.role, 0)));
+  }
   return lines;
 }
 

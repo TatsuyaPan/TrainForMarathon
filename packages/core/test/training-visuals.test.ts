@@ -4,48 +4,41 @@ import {
   intensityBarStyle,
   workoutIntensities,
 } from "../src/training-visuals.js";
-import { parseWorkoutDsl } from "../src/workout-dsl.js";
+import { parseWorkoutDsl } from "../src/dsl/registry.js";
 
-describe("training intensity visuals", () => {
-  it("maps zones by color scheme: green -> yellow -> red -> purple -> light purple", () => {
+describe("训练强度可视化", () => {
+  it("色阶：E 绿 → M 黄绿 → T 黄 → I 红 → R 紫 → ST 淡紫", () => {
     const channel = (hex: string, from: number, to: number) => parseInt(hex.slice(from, to), 16);
-    const isGreenish = (hex: string) => channel(hex, 3, 5) > channel(hex, 1, 3); // G > R
-    const isReddish = (hex: string) => channel(hex, 1, 3) > channel(hex, 3, 5); // R > G
-    const isPurple = (hex: string) => channel(hex, 1, 3) > channel(hex, 3, 5) && channel(hex, 5, 7) > channel(hex, 3, 5); // R > G 且 B > G
-    expect(isGreenish(INTENSITY_COLORS.E)).toBe(true); // 轻松跑绿
-    expect(isReddish(INTENSITY_COLORS.I)).toBe(true); // 摄氧红
-    expect(isPurple(INTENSITY_COLORS.R)).toBe(true); // 重复紫
-    expect(isPurple(INTENSITY_COLORS.ST)).toBe(true); // 跨步淡紫
-    // 淡紫比紫更浅（ST 绿色通道高于 R）
+    const isGreenish = (hex: string) => channel(hex, 3, 5) > channel(hex, 1, 3);
+    const isReddish = (hex: string) => channel(hex, 1, 3) > channel(hex, 3, 5);
+    const isPurple = (hex: string) =>
+      channel(hex, 1, 3) > channel(hex, 3, 5) && channel(hex, 5, 7) > channel(hex, 3, 5);
+    expect(isGreenish(INTENSITY_COLORS.E)).toBe(true);
+    expect(isReddish(INTENSITY_COLORS.I)).toBe(true);
+    expect(isPurple(INTENSITY_COLORS.R)).toBe(true);
+    expect(isPurple(INTENSITY_COLORS.ST)).toBe(true);
     expect(channel(INTENSITY_COLORS.ST, 3, 5)).toBeGreaterThan(channel(INTENSITY_COLORS.R, 3, 5));
   });
 
-  it("extracts single intensity from a workout", () => {
-    const workout = parseWorkoutDsl("[x] (800m@I+3min@jg)*10");
-    expect(workoutIntensities(workout)).toEqual(["I"]);
+  it("提取强度序列（含循环与嵌套）", () => {
+    expect(workoutIntensities(parseWorkoutDsl("GOAL:x\nMS:10x(800m@I+3min@jog)"))).toEqual(["I"]);
+    expect(
+      workoutIntensities(parseWorkoutDsl("GOAL:x\nMS:4x(6min@T+1min@jog)+6x(400m@R+400m@jog)")),
+    ).toEqual(["T", "R"]);
+    expect(workoutIntensities(parseWorkoutDsl("GOAL:x\nMS:2x(5min@M+3x(400m@R+400m@jog))"))).toEqual(["M", "R"]);
+    expect(workoutIntensities(parseWorkoutDsl("GOAL:x\nMS:45min@HR65-78%max"))).toEqual([]);
   });
 
-  it("extracts mixed intensities ordered by strength", () => {
-    const workout = parseWorkoutDsl("[x] (6min@T+1min@jg)*4+(400m@R+400m@jg)*6");
-    expect(workoutIntensities(workout)).toEqual(["T", "R"]);
-  });
+  it("色带：单色为纯色，多强度为比例渐变，无内容为休息色", () => {
+    const single = parseWorkoutDsl("GOAL:x\nMS:8min@T");
+    expect(intensityBarStyle(single)).toBe(`background: ${INTENSITY_COLORS.T};`);
 
-  it("nested sets are flattened", () => {
-    const workout = parseWorkoutDsl("[x] (5min@M+(400m@R+400m@jg)*3)*2");
-    expect(workoutIntensities(workout)).toEqual(["M", "R"]);
-  });
+    const mixed = parseWorkoutDsl("GOAL:x\nWU:10min@E\nMS:4x(6min@T+1min@jog)\nCD:10min@E");
+    const style = intensityBarStyle(mixed);
+    expect(style).toContain("linear-gradient");
+    expect(style).toContain(INTENSITY_COLORS.T);
+    expect(style).toContain(INTENSITY_COLORS.E);
 
-  it("bar style: single color vs mixed gradient", () => {
-    const single = parseWorkoutDsl("[x] 8min@T");
-    expect(intensityBarStyle(single)).toContain(INTENSITY_COLORS.T);
-    expect(intensityBarStyle(single)).not.toContain("linear-gradient");
-    const mixed = parseWorkoutDsl("[x] (6min@T+1min@jg)*4+(400m@R+400m@jg)*6");
-    expect(intensityBarStyle(mixed)).toContain("linear-gradient");
-    expect(intensityBarStyle(mixed)).toContain(INTENSITY_COLORS.T);
-    expect(intensityBarStyle(mixed)).toContain(INTENSITY_COLORS.R);
-  });
-
-  it("rest color fallback for empty or rest workouts", () => {
     expect(intensityBarStyle(undefined)).toContain("#c3cac5");
   });
 });

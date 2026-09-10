@@ -6,7 +6,7 @@ export const CORE_PACKAGE = {
 export * from "./domain.js";
 export * from "./athlete.js";
 export * from "./markdown.js";
-export * from "./workout-dsl.js";
+export * from "./dsl/index.js";
 export * from "./vdot.js";
 export * from "./beginner-table.js";
 export * from "./training-visuals.js";

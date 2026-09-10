@@ -1,7 +1,7 @@
 import type { PlanInstance } from "../domain.js";
 import { calculateTrainingPaces } from "../pace.js";
 import { getPlanTemplate } from "./registry.js";
-import { buildDayWorkout } from "./session-params.js";
+import { buildDayWorkout, workoutPlannedTotals } from "./session-params.js";
 import type { SessionContext } from "./session-params.js";
 
 export interface InstantiatePlanParameters {
@@ -82,13 +82,14 @@ export function instantiatePlan(
             .filter((item) => item.type !== "REST" && item.type !== "RACE" && item.type !== "TEST")
             .map((item) => item.type);
           const workout = buildDayWorkout(workoutTypes, context);
+          const planned = workout ? workoutPlannedTotals(workout) : undefined;
           return {
             ...day,
             id: `${template.id}:w${week.week}:d${day.dayIndex}`,
             date: isoDate(addUtcDays(weekStart, day.dayIndex)),
             workout,
-            plannedDistanceKm: workout?.totalDistanceKm,
-            plannedDurationMinutes: workout?.totalDurationMinutes,
+            plannedDistanceKm: planned && planned.distanceKm > 0 ? planned.distanceKm : undefined,
+            plannedDurationMinutes: planned && planned.durationMinutes > 0 ? planned.durationMinutes : undefined,
           };
         }),
       };

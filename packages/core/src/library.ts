@@ -1,154 +1,567 @@
 /**
- * 内置课表库：从书内「训练类型」各章可用课表表格提取，全部以 DSL 表达。
- * 按训练类型分类（T/I/R/M/混合/长距离/轻松），每条标注适用周跑量。
- * 推荐逻辑（暂占位）：提供该类第一条；未来可扩展为按周跑量/能力推荐。
+ * 课程库：内置课程（书内各章推荐课表）+ 自定义课程。
+ *
+ * 课程内容的唯一事实来源是 `workout`（AST）；DSL 在展示或导出时即时序列化，
+ * 因此课程库不会同时保存两份可能过期的内容。
+ * 内置课程按 Workout DSL v1 全新重写（含训练目的），不再保留旧版语法。
  */
-import type { Workout } from "./domain.js";
-import { parseWorkoutDsl, validateWorkout } from "./workout-dsl.js";
+import { DANIELS_ZONES, type DanielsZone, type Workout } from "./domain.js";
+import { parseWorkoutDsl, serializeWorkout } from "./dsl/registry.js";
+import { normalizeWorkout, validateWorkout, workoutZones, type WorkoutIssue } from "./dsl/workout.js";
 
-export type LibraryType =
-  | "T"      // 乳酸阈值跑
-  | "I"      // 最大摄氧量跑
-  | "R"      // 重复跑
-  | "M"      // 马拉松配速跑
-  | "E"      // 轻松跑/长距离
-  | "mixed"; // 混合刺激
+export const LIBRARY_CATEGORIES = ["E", "M", "T", "I", "R", "ST", "mixed"] as const;
+export type LibraryCategory = (typeof LIBRARY_CATEGORIES)[number];
+export type LibraryOrigin = "builtin" | "custom";
 
-export interface LibraryEntry {
-  id: string;
-  type: LibraryType;
-  name: string;
-  /** 适用类型标签：本课表适用于这些训练类型（选择时按此匹配） */
-  tags: LibraryType[];
-  /** 适用周跑量建议（km），供分档提示 */
-  weeklyKmHint?: string;
-  source: string;
-  dsl: string;
-  workout: Workout;
-}
-
-function entry(
-  id: string,
-  type: LibraryType,
-  name: string,
-  dsl: string,
-  source: string,
-  tags?: LibraryType[],
-  weeklyKmHint?: string,
-): LibraryEntry {
-  return {
-    id,
-    type,
-    name,
-    tags: tags ?? [type],
-    weeklyKmHint,
-    source,
-    dsl,
-    workout: parseWorkoutDsl(dsl),
-  };
-}
-
-/** 内置课表库（全量，来源 = 书内表格） */
-export const BUILTIN_LIBRARY: readonly LibraryEntry[] = [
-  // ---- T 跑（《乳酸阈值跑》可用课表表格） ----
-  entry("t-20min", "T", "20min@T 连续跑", "20min@T@rpe7", "《乳酸阈值跑》", ["T"], "周跑量较低 / 基础期"),
-  entry("t-2k-x5", "T", "(2km@T+1.5min@jg)×5", "(2km@T+2min@jg)*5", "《乳酸阈值跑》", ["T"], "周跑量 160km 可加到 7-9 组"),
-  entry("t-6min-x8", "T", "(5-6min@T+1min@jg)×8", "(6min@T@rpe8+1min@jg)*8", "《乳酸阈值跑》", ["T"], "周跑量 100-120km"),
-  entry("t-8min-x6", "T", "(8min@T+1-1.5min@jg)×5-6", "(8min@T@rpe8+1.5min@jg)*6", "《乳酸阈值跑》", ["T"], "周跑量 ≥100km"),
-  entry("t-combo-50", "T", "20min@T + 10min@T×2 + 5min@T×2", "20min@T@rpe8+4min@jg+(10min@T@rpe8+2min@jg)*2+(5min@T@rpe8+1min@jg)*2", "《乳酸阈值跑》", ["T"], "周跑量 ≥120km"),
-  entry("t-combo-50b", "T", "20min@T + 15min@T + 10min@T + 5min@T", "20min@T@rpe8+4min@jg+15min@T@rpe8+2min@jg+10min@T@rpe8+2min@jg+5min@T@rpe8+1min@jg", "《乳酸阈值跑》", ["T"], "周跑量 ≥120km"),
-
-  // ---- I 跑（《最大摄氧量跑》可用课表表格） ----
-  entry("i-yasso-800", "I", "亚索 800：800m@I×10", "(800m@I+3min@jg)*10", "《最大摄氧量跑》", ["I"], "通用"),
-  entry("i-1000-x8", "I", "(1000m@I+3min@jg)×6-8", "(1000m@I+3min@jg)*8", "《最大摄氧量跑》", ["I"], "通用"),
-  entry("i-3min-x8", "I", "(3min@I+2min@jg)×7-10", "(3min@I@rpe9+2min@jg)*8", "《最大摄氧量跑》", ["I"], "非标准操场绕圈"),
-  entry("i-pyramid", "I", "(3min×3)+(2min×4)+(1min×5) 递减", "(3min@I+2min@jg)*3+(2min@I+1min@jg)*4+(1min@I+30s@jg)*5", "《最大摄氧量跑》", ["I"], "周跑量 100km 左右"),
-  entry("i-400-x20", "I", "(400m@I+1.5min@jg)×20", "(400m@I+1.5min@jg)*20", "《最大摄氧量跑》", ["I"], "通用"),
-
-  // ---- R 跑（《重复跑》可用课表表格） ----
-  entry("r-200-x20", "R", "(200m@R+200m@jg)×20", "(200m@R+200m@jg)*20", "《重复跑》", ["R"], "通用"),
-  entry("r-400-x10", "R", "(400m@R+400m@jg)×10", "(400m@R+400m@jg)*10", "《重复跑》", ["R"], "通用"),
-  entry("r-200-400-combo", "R", "200×4 + 400×8 + 200×4", "(200m@R+200m@jg)*4+(400m@R+400m@jg)*8+(200m@R+200m@jg)*4", "《重复跑》", ["R"], "周跑量 100km 左右"),
-  entry("r-decreasing", "R", "600×4 + 400×4 + 200×4 递减", "(600m@R+600m@jg)*4+(400m@R+400m@jg)*4+(200m@R+200m@jg)*4", "《重复跑》", ["R"], "周跑量 100km 左右"),
-  entry("r-800-hard", "R", "800×2 + 400×4 + 200×8", "(800m@R+800m@jg)*2+(400m@R+400m@jg)*4+(200m@R+200m@jg)*8", "《重复跑》", ["R"], "高难度"),
-
-  // ---- M 跑（《马拉松配速跑》） ----
-  entry("m-15km", "M", "15km@M", "15km@M@rpe7", "《马拉松配速跑》", ["M"], "控制距离"),
-  entry("m-60min", "M", "60min@M", "60min@M@rpe7", "《马拉松配速跑》", ["M"], "控制时长"),
-
-  // ---- E / L（《轻松跑》） ----
-  entry("e-40min", "E", "40min@E 轻松跑", "40min@E", "《轻松跑》", ["E", "M"], "≥30min，按心率"),
-  entry("l-120min", "E", "120min@E 长距离（LSD）", "120min@E", "《轻松跑》", ["E", "M"], "2-2.5h，不超周跑量 25%"),
-
-  // ---- 混合刺激（《混合训练》可用课表表格） ----
-  entry("mix-pyramid-54321", "mixed", "54321 倒金字塔（M+T+I）", "5km@M@rpe7+2.5min@jg+4km@T@rpe8+2.5min@jg+3km@T@rpe8+2.5min@jg+2km@I@rpe9+2.5min@jg+1km@I@rpe9", "《混合训练》", ["T", "I", "M"], "周跑量 100km 左右"),
-  entry("mix-tm-short", "mixed", "TM 混合中短距离刺激", "5km@M+3min@jg+20min@T@rpe8+3min@jg+3km@M", "《混合训练》", ["T", "M"], "通用"),
-  entry("mix-tme-long", "mixed", "TME 混合长距离刺激", "5km@E@warmup+(3km@M+1km@T+1km@M+1km@E)*3+5km@E@cooldown", "《混合训练》", ["T", "M", "E"], "通用"),
-  entry("mix-t-only", "mixed", "T 配速法特莱克（12.8km T 容量）", "6.4km@E@warmup+4.8km@T+3min@E+3.2km@T+2min@E+3.2km@T+2min@E+1.6km@T+3.2km@E@cooldown", "《混合训练》", ["T", "E"], "周跑量 100km 左右"),
-  entry("mix-tir", "mixed", "TIR 混合课表", "3.2km@E@warmup+(1.6km@T+1min@E)*3+(1000m@I+2min@E)*3+(400m@R+400m@jg)*3+3.2km@E@cooldown", "《混合训练》", ["T", "I", "R", "E"], "通用"),
-  entry("mix-tr", "mixed", "TR 混合跑", "20min@T+4min@jg+10min@T+2min@jg+(400m@R+400m@jg)*5", "《混合训练》", ["T", "R"], "通用"),
-];
-
-export type LibraryTypeLabels = Record<LibraryType, string>;
-export const LIBRARY_TYPE_LABELS: LibraryTypeLabels = {
+export const LIBRARY_CATEGORY_LABELS: Record<LibraryCategory, string> = {
+  E: "轻松跑 / 长距离",
+  M: "马拉松配速跑",
   T: "乳酸阈值跑",
   I: "最大摄氧量跑",
   R: "重复跑",
-  M: "马拉松配速跑",
-  E: "轻松跑 / 长距离",
+  ST: "跨步跑 / 神经激活",
   mixed: "混合刺激",
 };
 
-/** 按训练类型筛选课表库（选择时匹配 tags） */
-export function listLibraryByType(type: LibraryType | LibraryType[]): LibraryEntry[] {
-  const wanted = Array.isArray(type) ? type : [type];
-  return BUILTIN_LIBRARY.filter((entryItem) =>
-    entryItem.tags.some((tag) => wanted.includes(tag)),
+export const LIBRARY_CATEGORY_ORDER: readonly LibraryCategory[] = LIBRARY_CATEGORIES;
+
+export interface LibraryCourse {
+  id: string;
+  origin: LibraryOrigin;
+  category: LibraryCategory;
+  /** 适用强度标签（用于筛选） */
+  tags: DanielsZone[];
+  /** 适用周跑量建议，供分档提示 */
+  weeklyKmHint?: string;
+  /** 来源说明：内置课程为书名，自定义课程为「自定义」或「复制自 …」 */
+  source: string;
+  workout: Workout;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface LibraryIssue {
+  code: string;
+  message: string;
+  path: string;
+}
+
+function isCategory(value: unknown): value is LibraryCategory {
+  return typeof value === "string" && (LIBRARY_CATEGORIES as readonly string[]).includes(value);
+}
+
+/**
+ * 标签默认取课程主分类；混合课程按实际出现的强度档位展开。
+ * 标签表达训练重点，而不是“课程里出现过的所有档位”（热身、冷身不算重点）。
+ */
+function deriveTags(workout: Workout, category: LibraryCategory): DanielsZone[] {
+  if (category === "mixed") {
+    const zones = workoutZones(workout);
+    return zones.length > 0 ? zones : [...DANIELS_ZONES];
+  }
+  return [category];
+}
+
+const DANIELS_TAGS = new Set<string>(DANIELS_ZONES);
+
+/** 校验课程库条目：元数据 + Workout 结构 */
+export function validateLibraryCourse(course: LibraryCourse): LibraryIssue[] {
+  const issues: LibraryIssue[] = [];
+  if (!course || typeof course !== "object") {
+    return [{ code: "invalid-course", message: "课程数据缺失", path: "course" }];
+  }
+  if (typeof course.id !== "string" || course.id.trim() === "") {
+    issues.push({ code: "invalid-id", message: "课程缺少 id", path: "course.id" });
+  }
+  if (course.origin !== "builtin" && course.origin !== "custom") {
+    issues.push({ code: "invalid-origin", message: "课程来源只能是内置或自定义", path: "course.origin" });
+  }
+  if (!isCategory(course.category)) {
+    issues.push({ code: "invalid-category", message: `未知课程分类「${String(course.category)}」`, path: "course.category" });
+  }
+  if (!Array.isArray(course.tags) || course.tags.some((tag) => !DANIELS_TAGS.has(tag))) {
+    issues.push({ code: "invalid-tags", message: "课程标签只能是 E/M/T/I/R/ST", path: "course.tags" });
+  }
+  if (!course.workout || typeof course.workout !== "object") {
+    issues.push({ code: "invalid-workout", message: "课程缺少训练内容", path: "course.workout" });
+    return issues;
+  }
+  for (const issue of validateWorkout(course.workout)) {
+    issues.push({ code: issue.code, message: issue.message, path: `course.${issue.path}` });
+  }
+  return issues;
+}
+
+export interface CreateLibraryCourseInput {
+  id?: string;
+  origin?: LibraryOrigin;
+  category: LibraryCategory;
+  tags?: DanielsZone[];
+  weeklyKmHint?: string;
+  source?: string;
+  workout: Workout;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export function createLibraryCourseId(): string {
+  return `course-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+/** 新建课程条目；校验不通过直接抛错（写入任何存储之前调用） */
+export function createLibraryCourse(input: CreateLibraryCourseInput): LibraryCourse {
+  const workout = normalizeWorkout(structuredClone(input.workout) as Workout);
+  const timestamp = nowIso();
+  const course: LibraryCourse = {
+    id: input.id ?? createLibraryCourseId(),
+    origin: input.origin ?? "custom",
+    category: input.category,
+    tags: input.tags && input.tags.length > 0 ? [...new Set(input.tags)] : deriveTags(workout, input.category),
+    weeklyKmHint: input.weeklyKmHint,
+    source: input.source ?? "自定义",
+    workout,
+    createdAt: input.createdAt ?? timestamp,
+    updatedAt: input.updatedAt ?? timestamp,
+  };
+  const issues = validateLibraryCourse(course);
+  if (issues.length > 0) throw new Error(`课程无效：${issues[0].message}`);
+  return course;
+}
+
+/** 更新自定义课程：保留 id 与 createdAt，刷新 updatedAt */
+export function updateLibraryCourse(
+  course: LibraryCourse,
+  patch: Partial<Pick<LibraryCourse, "category" | "tags" | "weeklyKmHint" | "source" | "workout">>,
+): LibraryCourse {
+  const updated: LibraryCourse = {
+    ...course,
+    ...patch,
+    tags: patch.tags ?? (patch.category && patch.category !== course.category
+      ? deriveTags(patch.workout ?? course.workout, patch.category)
+      : course.tags),
+    workout: patch.workout ? normalizeWorkout(structuredClone(patch.workout) as Workout) : course.workout,
+    updatedAt: nowIso(),
+  };
+  const issues = validateLibraryCourse(updated);
+  if (issues.length > 0) throw new Error(`课程无效：${issues[0].message}`);
+  return updated;
+}
+
+export interface CloneLibraryCourseOverrides {
+  id?: string;
+  category?: LibraryCategory;
+  tags?: DanielsZone[];
+  weeklyKmHint?: string;
+  source?: string;
+  title?: string;
+}
+
+/** 复制课程：深拷贝内容，生成新的自定义课程（标题存在时追加「（副本）」） */
+export function cloneLibraryCourse(
+  course: LibraryCourse,
+  overrides: CloneLibraryCourseOverrides = {},
+): LibraryCourse {
+  const workout = structuredClone(course.workout) as Workout;
+  const hasTitle = typeof workout.title === "string" && workout.title.trim() !== "";
+  workout.title = overrides.title ?? (hasTitle ? `${workout.title!.trim()}（副本）` : workout.title);
+  return createLibraryCourse({
+    id: overrides.id ?? createLibraryCourseId(),
+    origin: "custom",
+    category: overrides.category ?? course.category,
+    tags: overrides.tags ?? course.tags,
+    weeklyKmHint: overrides.weeklyKmHint ?? course.weeklyKmHint,
+    source: overrides.source ?? (course.origin === "builtin" ? `复制自《${course.source}》` : "复制自自定义课程"),
+    workout,
+  });
+}
+
+/** 序列化课程内容（导出/分享用） */
+export function serializeLibraryCourse(course: LibraryCourse, options?: { version?: boolean }): string {
+  return serializeWorkout(course.workout, options);
+}
+
+function builtin(
+  id: string,
+  category: LibraryCategory,
+  source: string,
+  dsl: string,
+  weeklyKmHint?: string,
+  tags?: DanielsZone[],
+): LibraryCourse {
+  const workout = parseWorkoutDsl(dsl);
+  return {
+    id,
+    origin: "builtin",
+    category,
+    tags: tags ?? deriveTags(workout, category),
+    weeklyKmHint,
+    source,
+    workout,
+  };
+}
+
+const LINKS = "《乳酸阈值跑》";
+const VO2 = "《最大摄氧量跑》";
+const REP = "《重复跑》";
+const MARATHON = "《马拉松配速跑》";
+const EASY = "《轻松跑》";
+const MIX = "《混合训练》";
+
+/** 内置课程（来源 = 书内表格，全部按 Workout DSL v1 重写） */
+export const BUILTIN_COURSES: readonly LibraryCourse[] = [
+  // ---- T 跑（《乳酸阈值跑》） ----
+  builtin(
+    "t-20min",
+    "T",
+    LINKS,
+    ["TITLE:20 分钟阈值连续跑", "GOAL:乳酸阈能力", "MS:20min@T@RPE7"].join("\n"),
+    "周跑量较低 / 基础期",
+  ),
+  builtin(
+    "t-2k-x5",
+    "T",
+    LINKS,
+    ["TITLE:2km×5 阈值跑", "GOAL:乳酸阈能力", "MS:5x(2km@T+2min@jog)"].join("\n"),
+    "周跑量 160km 可加到 7-9 组",
+  ),
+  builtin(
+    "t-6min-x8",
+    "T",
+    LINKS,
+    [
+      "TITLE:6 分钟阈值跑 ×8",
+      "GOAL:乳酸阈能力",
+      "WU:15min@E",
+      "MS:8x(6min@T@RPE8+1min@jog)",
+      "CD:10min@E",
+    ].join("\n"),
+    "周跑量 100-120km",
+  ),
+  builtin(
+    "t-8min-x6",
+    "T",
+    LINKS,
+    [
+      "TITLE:8 分钟阈值跑 ×6",
+      "GOAL:乳酸阈能力",
+      "WU:15min@E",
+      "MS:6x(8min@T@RPE8+90s@jog)",
+      "CD:10min@E",
+    ].join("\n"),
+    "周跑量 ≥100km",
+  ),
+  builtin(
+    "t-combo-50",
+    "T",
+    LINKS,
+    [
+      "TITLE:分段阈值 50 分钟",
+      "GOAL:乳酸阈能力",
+      "WU:15min@E",
+      "MS:20min@T@RPE8+4min@jog+2x(10min@T@RPE8+2min@jog)+2x(5min@T@RPE8+1min@jog)",
+      "CD:10min@E",
+    ].join("\n"),
+    "周跑量 ≥120km",
+  ),
+  builtin(
+    "t-combo-50b",
+    "T",
+    LINKS,
+    [
+      "TITLE:递减阈值 20-15-10-5",
+      "GOAL:乳酸阈能力",
+      "WU:15min@E",
+      "MS:20min@T@RPE8+4min@jog+15min@T@RPE8+2min@jog+10min@T@RPE8+2min@jog+5min@T@RPE8+1min@jog",
+      "CD:10min@E",
+    ].join("\n"),
+    "周跑量 ≥120km",
+  ),
+
+  // ---- I 跑（《最大摄氧量跑》） ----
+  builtin(
+    "i-yasso-800",
+    "I",
+    VO2,
+    ["TITLE:亚索 800", "GOAL:最大摄氧量", "WU:15min@E", "MS:10x(800m@I+3min@jog)", "CD:10min@E"].join("\n"),
+    "通用",
+  ),
+  builtin(
+    "i-1000-x8",
+    "I",
+    VO2,
+    ["TITLE:1000m 间歇 ×8", "GOAL:最大摄氧量", "WU:15min@E", "MS:8x(1000m@I+3min@jog)", "CD:10min@E"].join("\n"),
+    "通用",
+  ),
+  builtin(
+    "i-3min-x8",
+    "I",
+    VO2,
+    [
+      "TITLE:3 分钟间歇 ×8",
+      "GOAL:最大摄氧量",
+      "WU:15min@E",
+      "MS:8x(3min@I@RPE9+2min@jog)",
+      "CD:10min@E",
+    ].join("\n"),
+    "非标准操场绕圈",
+  ),
+  builtin(
+    "i-pyramid",
+    "I",
+    VO2,
+    [
+      "TITLE:I 强度金字塔",
+      "GOAL:最大摄氧量",
+      "WU:15min@E",
+      "MS:3x(3min@I+2min@jog)+4x(2min@I+90s@jog)+5x(60s@I+30s@jog)",
+      "CD:10min@E",
+    ].join("\n"),
+    "周跑量 100km 左右",
+  ),
+  builtin(
+    "i-400-x20",
+    "I",
+    VO2,
+    ["TITLE:400m 间歇 ×20", "GOAL:最大摄氧量", "WU:15min@E", "MS:20x(400m@I+90s@jog)", "CD:10min@E"].join("\n"),
+    "通用",
+  ),
+
+  // ---- R 跑（《重复跑》） ----
+  builtin(
+    "r-200-x20",
+    "R",
+    REP,
+    ["TITLE:200m 重复 ×20", "GOAL:速度与跑步经济性", "WU:15min@E", "MS:20x(200m@R+200m@jog)", "CD:10min@E"].join("\n"),
+    "通用",
+  ),
+  builtin(
+    "r-400-x10",
+    "R",
+    REP,
+    ["TITLE:400m 重复 ×10", "GOAL:速度与跑步经济性", "WU:15min@E", "MS:10x(400m@R+400m@jog)", "CD:10min@E"].join("\n"),
+    "通用",
+  ),
+  builtin(
+    "r-200-400-combo",
+    "R",
+    REP,
+    [
+      "TITLE:200-400 组合重复",
+      "GOAL:速度与跑步经济性",
+      "WU:15min@E",
+      "MS:4x(200m@R+200m@jog)+8x(400m@R+400m@jog)+4x(200m@R+200m@jog)",
+      "CD:10min@E",
+    ].join("\n"),
+    "周跑量 100km 左右",
+  ),
+  builtin(
+    "r-decreasing",
+    "R",
+    REP,
+    [
+      "TITLE:递减重复 600-400-200",
+      "GOAL:速度与跑步经济性",
+      "WU:15min@E",
+      "MS:4x(600m@R+600m@jog)+4x(400m@R+400m@jog)+4x(200m@R+200m@jog)",
+      "CD:10min@E",
+    ].join("\n"),
+    "周跑量 100km 左右",
+  ),
+  builtin(
+    "r-800-hard",
+    "R",
+    REP,
+    [
+      "TITLE:高强度重复 800-400-200",
+      "GOAL:速度与跑步经济性",
+      "WU:15min@E",
+      "MS:2x(800m@R+800m@jog)+4x(400m@R+400m@jog)+8x(200m@R+200m@jog)",
+      "CD:10min@E",
+    ].join("\n"),
+    "高难度",
+  ),
+
+  // ---- M 跑（《马拉松配速跑》） ----
+  builtin(
+    "m-15km",
+    "M",
+    MARATHON,
+    ["TITLE:15 公里马拉松配速跑", "GOAL:马拉松配速适应", "MS:15km@M@RPE7"].join("\n"),
+    "控制距离",
+  ),
+  builtin(
+    "m-60min",
+    "M",
+    MARATHON,
+    ["TITLE:60 分钟马拉松配速跑", "GOAL:马拉松配速适应", "MS:60min@M@RPE7"].join("\n"),
+    "控制时长",
+  ),
+
+  // ---- E / L（《轻松跑》） ----
+  builtin(
+    "e-40min",
+    "E",
+    EASY,
+    ["TITLE:40 分钟轻松跑", "GOAL:有氧基础", "MS:40min@E"].join("\n"),
+    "≥30min，按心率",
+    ["E", "M"],
+  ),
+  builtin(
+    "l-120min",
+    "E",
+    EASY,
+    ["TITLE:120 分钟长距离", "GOAL:长距离耐力", "MS:120min@E"].join("\n"),
+    "2-2.5h，不超周跑量 25%",
+    ["E", "M"],
+  ),
+
+  // ---- ST 跨步跑（项目扩展强度） ----
+  builtin(
+    "st-100-x6",
+    "ST",
+    "《重复跑》· 项目扩展（ST）",
+    [
+      "TITLE:100m 跨步跑 ×6",
+      "GOAL:神经激活与跑姿",
+      "WU:15min@E",
+      "MS:6x(100m@ST+100m@jog)",
+      "CD:10min@E",
+    ].join("\n"),
+    "赛前或轻松跑后",
+  ),
+  builtin(
+    "st-30s-x6",
+    "ST",
+    "《重复跑》· 项目扩展（ST）",
+    [
+      "TITLE:30 秒跨步跑 ×6",
+      "GOAL:神经激活与跑姿",
+      "WU:15min@E",
+      "MS:6x(30s@ST+60s@jog)",
+      "CD:10min@E",
+    ].join("\n"),
+    "场地受限时使用",
+  ),
+
+  // ---- 混合刺激（《混合训练》） ----
+  builtin(
+    "mix-pyramid-54321",
+    "mixed",
+    MIX,
+    [
+      "TITLE:54321 倒金字塔",
+      "GOAL:混合刺激",
+      "WU:15min@E",
+      "MS:5km@M@RPE7+150s@jog+4km@T@RPE8+150s@jog+3km@T@RPE8+150s@jog+2km@I@RPE9+150s@jog+1km@I@RPE9",
+      "CD:10min@E",
+    ].join("\n"),
+    "周跑量 100km 左右",
+    ["T", "I", "M"],
+  ),
+  builtin(
+    "mix-tm-short",
+    "mixed",
+    MIX,
+    [
+      "TITLE:TM 中短距离混合",
+      "GOAL:混合刺激",
+      "WU:15min@E",
+      "MS:5km@M+3min@jog+20min@T@RPE8+3min@jog+3km@M",
+      "CD:10min@E",
+    ].join("\n"),
+    "通用",
+    ["T", "M"],
+  ),
+  builtin(
+    "mix-tme-long",
+    "mixed",
+    MIX,
+    [
+      "TITLE:TME 长距离混合",
+      "GOAL:混合刺激",
+      "WU:5km@E",
+      "MS:3x(3km@M+1km@T+1km@M+1km@E)",
+      "CD:5km@E",
+    ].join("\n"),
+    "通用",
+    ["T", "M", "E"],
+  ),
+  builtin(
+    "mix-t-only",
+    "mixed",
+    MIX,
+    [
+      "TITLE:T 配速法特莱克",
+      "GOAL:混合刺激",
+      "WU:6.4km@E",
+      "MS:4.8km@T+3min@jog+3.2km@T+2min@jog+3.2km@T+2min@jog+1.6km@T",
+      "CD:3.2km@E",
+    ].join("\n"),
+    "周跑量 100km 左右",
+    ["T", "E"],
+  ),
+  builtin(
+    "mix-tir",
+    "mixed",
+    MIX,
+    [
+      "TITLE:TIR 混合课表",
+      "GOAL:混合刺激",
+      "WU:3.2km@E",
+      "MS:3x(1.6km@T+1min@jog)+3x(1000m@I+2min@jog)+3x(400m@R+400m@jog)",
+      "CD:3.2km@E",
+    ].join("\n"),
+    "通用",
+    ["T", "I", "R", "E"],
+  ),
+  builtin(
+    "mix-tr",
+    "mixed",
+    MIX,
+    [
+      "TITLE:TR 混合跑",
+      "GOAL:混合刺激",
+      "WU:15min@E",
+      "MS:20min@T+4min@jog+10min@T+2min@jog+5x(400m@R+400m@jog)",
+      "CD:10min@E",
+    ].join("\n"),
+    "通用",
+    ["T", "R"],
+  ),
+];
+
+/** 按分类筛选课程（内置 + 自定义都用 tags 匹配） */
+export function listCoursesByCategory(
+  courses: readonly LibraryCourse[],
+  category?: LibraryCategory,
+): LibraryCourse[] {
+  if (!category) return [...courses];
+  return courses.filter(
+    (course) =>
+      course.category === category ||
+      (category !== "mixed" && course.tags.includes(category)),
   );
 }
 
-/**
- * 推荐（占位算法）：返回该类第一条。
- * 未来扩展：按运动员能力（阈值配速/周跑量）与阶段（基础/提高/巅峰/减量）推荐最合适条目。
- */
-export function recommendEntry(type: LibraryType): LibraryEntry | null {
-  return BUILTIN_LIBRARY.find((entryItem) => entryItem.tags.includes(type)) ?? null;
+/** 按 id 查课程（先查内置，再查传入的自定义课程） */
+export function getLibraryCourse(
+  id: string,
+  customCourses: readonly LibraryCourse[] = [],
+): LibraryCourse | undefined {
+  return BUILTIN_COURSES.find((course) => course.id === id) ??
+    customCourses.find((course) => course.id === id);
 }
 
-/** 按 id 查课表库 */
-export function getLibraryEntry(id: string): LibraryEntry | undefined {
-  return BUILTIN_LIBRARY.find((entryItem) => entryItem.id === id);
+/** 推荐（占位算法）：返回该分类第一条内置课程 */
+export function recommendLibraryCourse(category: LibraryCategory): LibraryCourse | null {
+  return BUILTIN_COURSES.find((course) => course.category === category) ?? null;
 }
 
-export interface CreateLibraryEntryInput {
-  id?: string;
-  type: LibraryType;
-  name: string;
-  dsl: string;
-  tags?: LibraryType[];
-  weeklyKmHint?: string;
-  source?: string;
-}
-
-/**
- * 创建自定义课程条目：校验 DSL 可解析、训练目的（goal）必填（课程也是训练，
- * 必须带有明确目的）。
- */
-export function createLibraryEntry(input: CreateLibraryEntryInput): LibraryEntry {
-  if (!input.name?.trim()) throw new Error("课程名称不能为空");
-  const workout = parseWorkoutDsl(input.dsl);
-  const errors = validateWorkout(workout);
-  if (errors.length > 0) {
-    throw new Error(`课程内容无效：${errors.join("；")}`);
-  }
-  return {
-    id: input.id ?? `custom-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-    type: input.type,
-    name: input.name.trim(),
-    tags: input.tags && input.tags.length > 0 ? input.tags : [input.type],
-    weeklyKmHint: input.weeklyKmHint,
-    source: input.source ?? "自定义",
-    dsl: input.dsl,
-    workout,
-  };
+/** 内置 + 自定义课程合并列表 */
+export function listAllCourses(customCourses: readonly LibraryCourse[]): LibraryCourse[] {
+  return [...customCourses, ...BUILTIN_COURSES];
 }

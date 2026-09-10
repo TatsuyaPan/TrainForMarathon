@@ -38,70 +38,86 @@ export interface PlanDay {
 }
 
 /**
- * —— 训练内容模型（Workout）——
- * 线性流程：课表 → segments[]（分部序列）。
- * 分部 = Step（最小单元，强度+负荷+休息）或 Set（组，重复 N 次的一组分部）。
- * 组内可再嵌套分部（递归），与 TrainingPeaks / Garmin 结构化训练一致。
+ * —— 训练内容模型（Workout，DSL v1）——
+ * 完整规范见 spec/dsl/v1/workout-dsl-v1.md（冻结文本，实现依据）。
+ *
+ * 结构：Workout → phases[]（warmup → main → cooldown）→ segments[]（可递归循环）。
+ * 用户可见的五种步骤：热身 / 主训练 / 恢复 / 休息 / 冷身；
+ * 其中恢复与休息是一等分部，可独立排序、复制、删除并参与循环与汇总。
  */
 
-/** 强度：配速档 / 显式自定义配速区间 / 心率区间 / 自定义描述 */
-export type IntensitySpec =
-  | { type: "pace"; zone: "E" | "M" | "T" | "I" | "R" | "ST" }
-  | {
-      /** 用户显式指定的配速区间（秒/公里），如 285-300 ≈ 4:45–5:00/km */
-      type: "paceRange";
-      fastSecondsPerKm: number;
-      slowSecondsPerKm: number;
-      label?: string;
-    }
-  | { type: "heartRate"; minPercent?: number; maxPercent?: number; label?: string }
-  | { type: "custom"; label: string };
+/** Daniels 强度档位；ST 为本项目扩展的短距离神经激活/跨步跑 */
+export const DANIELS_ZONES = ["E", "M", "T", "I", "R", "ST"] as const;
+export type DanielsZone = (typeof DANIELS_ZONES)[number];
 
-/** 负荷：时间或距离 */
-export type LoadSpec =
-  | { type: "distance"; meters: number }
-  | { type: "time"; minutes: number };
+/** 阶段角色；顺序固定为 warmup → main → cooldown */
+export const WORKOUT_PHASE_ROLES = ["warmup", "main", "cooldown"] as const;
+export type WorkoutPhaseRole = (typeof WORKOUT_PHASE_ROLES)[number];
 
-/** 休息：时间 / 距离 / 慢跑（mode 标记恢复方式，DSL 中 @jg 为慢跑） */
-export type RestSpec =
-  | { type: "time"; minutes: number; mode?: "rest" | "jog" | "walk" }
-  | { type: "distance"; meters: number; mode?: "rest" | "jog" | "walk" }
-  | { type: "jog"; note?: string };
+/** 负荷：只保存整数秒或整数米，不保留原始单位 */
+export type Load =
+  | { type: "time"; seconds: number }
+  | { type: "distance"; meters: number };
 
-/** 最小训练单元 */
-export interface WorkoutStep {
-  kind: "step";
-  intensity: IntensitySpec;
-  load: LoadSpec;
-  rest?: RestSpec;
-  /** 训练阶段：热身 / 主课 / 冷身（DSL @warmup/@cooldown） */
-  phase?: "warmup" | "work" | "cooldown";
-  /** 自感用力度 1-10（DSL @rpeN） */
+/** 一个跑步步骤只能有一个主目标（DSL v1 不允许配速与心率同时作为主目标） */
+export type TrainingTarget =
+  | { type: "daniels"; zone: DanielsZone }
+  | { type: "pace-range"; fastSecondsPerKm: number; slowSecondsPerKm: number }
+  | { type: "heart-rate"; basis: "max" | "reserve"; minPercent: number; maxPercent: number }
+  | { type: "heart-rate-absolute"; minBpm: number; maxBpm: number }
+  | { type: "rpe"; value: number };
+
+/** 跑步步骤：热身 / 主训练 / 冷身（由所在阶段决定用户角色） */
+export interface RunStep {
+  kind: "run";
+  load: Load;
+  target: TrainingTarget;
+  /** 辅助体感提示 1-10（DSL @RPE n） */
   rpe?: number;
-  /** 坡度百分比，跑步机等（DSL @incN） */
+  /** 坡度百分比 0-20（DSL @inc n） */
   inclinePercent?: number;
   note?: string;
 }
 
-/** 组：重复 N 次的一组分部（可嵌套） */
-export interface WorkoutSet {
-  kind: "set";
-  repeats: number;
+/** 主动恢复：慢跑恢复，可按时间或距离 */
+export interface RecoveryStep {
+  kind: "recovery";
+  load: Load;
+  note?: string;
+}
+
+/** 被动休息：只按时间，不产生距离 */
+export interface RestStep {
+  kind: "rest";
+  durationSeconds: number;
+  note?: string;
+}
+
+/** 循环：严格重复括号内的完整序列，可嵌套（最大深度 10） */
+export interface RepeatBlock {
+  kind: "repeat";
+  repetitions: number;
   segments: WorkoutSegment[];
   note?: string;
 }
 
-export type WorkoutSegment = WorkoutStep | WorkoutSet;
+export type WorkoutSegment = RunStep | RecoveryStep | RestStep | RepeatBlock;
 
-/** 一次训练的内容 */
-export interface Workout {
-  name?: string;
-  /** 训练目的标签（DSL 头部 [xxx]，如"耐力·乳酸阈刺激"） */
-  goal?: string;
+export interface WorkoutPhase {
+  role: WorkoutPhaseRole;
   segments: WorkoutSegment[];
-  /** 汇总（生成器填充，编辑后可重算） */
-  totalDistanceKm?: number;
-  totalDurationMinutes?: number;
+}
+
+/** 一次训练的内容（AST 是唯一事实来源；DSL 在展示或导出时即时序列化） */
+export interface Workout {
+  dslVersion: number;
+  /** 可选课程标题；空白规范化为未设置 */
+  title?: string;
+  /** 必填训练目的（最高纲领） */
+  goal: string;
+  /** 可选课程备注；与步骤备注 @note(...) 不同层级 */
+  note?: string;
+  phases: WorkoutPhase[];
 }
 
 /**

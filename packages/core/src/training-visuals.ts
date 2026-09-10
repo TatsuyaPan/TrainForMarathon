@@ -1,54 +1,48 @@
 /**
- * 训练强度可视化：强度档位 → 颜色。
- * 色阶趋势：E 绿 → M 黄绿 → T 黄 → I 红 → R 紫 → ST 淡紫（速度类强度更高）。
+ * 训练强度可视化（兼容入口）。
+ *
+ * 颜色的唯一来源是 `dsl/presentation.ts`（课程展示数据），这里只提供
+ * 「强度序列」与「结构色带」两个便捷函数，供训练周/训练日等视图复用。
  */
-import type { Workout, WorkoutSegment } from "./domain.js";
+import type { DanielsZone, Workout } from "./domain.js";
+import {
+  INTENSITY_COLORS,
+  INTENSITY_ORDER,
+  NEUTRAL_TARGET_COLOR,
+  RECOVERY_COLOR,
+  REST_COLOR,
+  createWorkoutPresentation,
+} from "./dsl/presentation.js";
+import { workoutZones } from "./dsl/workout.js";
 
-/** 强度档位 → 颜色 */
-export const INTENSITY_COLORS: Record<string, string> = {
-  E: "#3d9a5f", // 轻松跑：绿
-  M: "#8fc93a", // 马拉松配速：黄绿
-  T: "#e3b93c", // 阈值：黄
-  I: "#d9402f", // 摄氧：红
-  R: "#8e44ad", // 重复：紫
-  ST: "#c9a7dc", // 跨步（速度）：淡紫
-};
+export { INTENSITY_COLORS, INTENSITY_ORDER, NEUTRAL_TARGET_COLOR, RECOVERY_COLOR, REST_COLOR };
 
-/** 强度展示顺序（按颜色强度从低到高） */
-export const INTENSITY_ORDER: readonly string[] = ["E", "M", "T", "I", "R", "ST"];
+/** 训练内容涉及的强度档位（去重、由低到高） */
+export function workoutIntensities(workout?: Workout): DanielsZone[] {
+  return workout ? workoutZones(workout) : [];
+}
 
-/** 休息/无训练的颜色 */
-export const REST_COLOR = "#c3cac5";
+function round(value: number): number {
+  return Math.round(value * 10) / 10;
+}
 
 /**
- * 提取训练内容的强度序列（去重、按强度从低到高排序）。
- * 优先用 workout 的分段强度；无 workout 时回退 items 类型。
+ * 训练内容的强度色带（按结构预览的比例生成渐变）。
+ * 单一颜色时返回纯色；无内容时返回休息色。
  */
-export function workoutIntensities(workout?: Workout): string[] {
-  const found = new Set<string>();
-  if (workout) {
-    collectSegmentIntensities(workout.segments, found);
-  }
-  return INTENSITY_ORDER.filter((zone) => found.has(zone));
-}
-
-function collectSegmentIntensities(segments: readonly WorkoutSegment[], found: Set<string>): void {
-  for (const segment of segments) {
-    if (segment.kind === "set") {
-      collectSegmentIntensities(segment.segments, found);
-    } else if (segment.intensity.type === "pace" && segment.intensity.zone in INTENSITY_COLORS) {
-      found.add(segment.intensity.zone);
-    }
-  }
-}
-
-/** 训练内容的强度色带（混合 = 多色等分，绿色→红色序） */
 export function intensityBarStyle(workout?: Workout): string {
-  const zones = workoutIntensities(workout);
-  if (zones.length === 0) return `background: ${REST_COLOR};`;
-  if (zones.length === 1) return `background: ${INTENSITY_COLORS[zones[0]]};`;
-  const segments = zones
-    .map((zone) => `${INTENSITY_COLORS[zone]} ${100 / zones.length * (zones.indexOf(zone))}% ${100 / zones.length * (zones.indexOf(zone) + 1)}%`)
-    .join(", ");
-  return `background: linear-gradient(90deg, ${segments});`;
+  if (!workout || workout.phases.length === 0) return `background: ${REST_COLOR};`;
+  const blocks = createWorkoutPresentation(workout).preview.blocks;
+  if (blocks.length === 0) return `background: ${REST_COLOR};`;
+  const colors = new Set(blocks.map((block) => block.color));
+  if (colors.size === 1) return `background: ${blocks[0].color};`;
+  const total = blocks.reduce((sum, block) => sum + block.weight, 0) || blocks.length;
+  let cursor = 0;
+  const stops = blocks.map((block) => {
+    const start = (cursor / total) * 100;
+    cursor += block.weight;
+    const end = (cursor / total) * 100;
+    return `${block.color} ${round(start)}% ${round(end)}%`;
+  });
+  return `background: linear-gradient(90deg, ${stops.join(", ")});`;
 }
