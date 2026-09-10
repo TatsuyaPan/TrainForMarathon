@@ -20,10 +20,10 @@
     <section v-if="session.plannedWorkout" class="planned-sheet">
       <div class="sheet-label">原计划</div>
       <strong>{{ session.plannedWorkout.goal || session.label }}</strong>
-      <span v-if="plannedTotals.distanceKm || plannedTotals.durationMinutes" class="muted">
-        {{ plannedTotals.distanceKm ? `${plannedTotals.distanceKm} km` : "" }}
-        {{ plannedTotals.distanceKm && plannedTotals.durationMinutes ? " · " : "" }}
-        {{ plannedTotals.durationMinutes ? `${plannedTotals.durationMinutes} min` : "" }}
+      <span v-if="plannedTotals.durationLabel || plannedTotals.distanceLabel" class="muted">
+        {{ plannedTotals.durationLabel ?? "" }}
+        {{ plannedTotals.durationLabel && plannedTotals.distanceLabel ? " · " : "" }}
+        {{ plannedTotals.distanceLabel ?? "" }}
       </span>
     </section>
 
@@ -56,11 +56,11 @@
         </button>
       </div>
 
-      <WorkoutEditorPanel
+      <WorkoutEditor
         v-if="form.adjustActualWorkout && form.actualWorkout"
-        :model-value="form.actualWorkout"
+        :workout="form.actualWorkout"
         class="actual-editor"
-        @update:model-value="form.actualWorkout = $event"
+        @update:workout="form.actualWorkout = $event"
       />
     </section>
 
@@ -109,10 +109,10 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import { completeSession, workoutTotals } from "@core";
+import { completeSession, createDefaultWorkout, createWorkoutPresentation } from "@core";
 import { service } from "../app-context.js";
 import { createSessionRecordForm, resetActualWorkoutToPlan, toCompleteSessionInput } from "../session-record-form.js";
-import WorkoutEditorPanel from "./WorkoutEditorPanel.vue";
+import WorkoutEditor from "../components/WorkoutEditor.vue";
 
 const props = defineProps({
   planId: { type: String, required: true },
@@ -136,14 +136,20 @@ const form = reactive({
 });
 
 const statusText = computed(() => session.value?.status === "done" ? "已记录" : session.value?.status === "skipped" ? "未进行" : "待完成");
-const plannedTotals = computed(() => session.value?.plannedWorkout ? workoutTotals(session.value.plannedWorkout) : { distanceKm: 0, durationMinutes: 0 });
+const plannedTotals = computed(() =>
+  session.value?.plannedWorkout
+    ? createWorkoutPresentation(session.value.plannedWorkout).headline
+    : { distanceLabel: undefined, durationLabel: undefined },
+);
 
 function usePlannedWorkout() {
   resetActualWorkoutToPlan(form);
 }
 
 function adjustWorkout() {
-  if (!form.actualWorkout) form.actualWorkout = { goal: session.value.label, segments: [] };
+  if (!form.actualWorkout) {
+    form.actualWorkout = { ...createDefaultWorkout(), goal: session.value?.label || "临时训练" };
+  }
   form.adjustActualWorkout = true;
 }
 

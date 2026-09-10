@@ -2,8 +2,16 @@ import { describe, expect, it } from "vitest";
 import { createSessionRecordForm, toCompleteSessionInput } from "../src/session-record-form.js";
 
 const plannedWorkout = {
+  dslVersion: 1,
   goal: "有氧耐力",
-  segments: [{ kind: "step", intensity: { type: "pace", zone: "E" }, load: { type: "distance", meters: 8000 } }],
+  phases: [
+    {
+      role: "main",
+      segments: [
+        { kind: "run", load: { type: "distance", meters: 8000 }, target: { type: "daniels", zone: "E" } },
+      ],
+    },
+  ],
 };
 
 function session(overrides = {}) {
@@ -33,7 +41,7 @@ describe("session record form", () => {
   });
 
   it("restores the unique record when editing a completed session", () => {
-    const actualWorkout = { goal: "实际改为节奏跑", segments: plannedWorkout.segments };
+    const actualWorkout = { ...plannedWorkout, goal: "实际改为节奏跑" };
     const form = createSessionRecordForm(session({
       status: "done",
       actualWorkout,

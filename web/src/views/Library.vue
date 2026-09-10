@@ -1,123 +1,226 @@
 <template>
   <div class="library-page">
-    <div class="page-hero">
-      <t-typography-title level="h4">课程库</t-typography-title>
-      <p class="muted">按训练强度分类：内置课程（原书各章推荐课表）+ 你的自定义课程。强度色阶：E 绿 → M 黄绿 → T 黄 → I 红 → R 紫。</p>
+    <header class="library-hero">
+      <div>
+        <h1>课程库</h1>
+        <p class="muted">选择、复制或创建适合自己的训练课程。强度色阶：E 绿 → M 黄绿 → T 黄 → I 红 → R 紫 → ST 淡紫。</p>
+      </div>
+      <div class="hero-actions">
+        <t-button data-testid="open-import" variant="outline" @click="importVisible = true">导入课程</t-button>
+        <t-button data-testid="new-course" theme="primary" @click="createCourse">＋ 新建课程</t-button>
+      </div>
+    </header>
+
+    <div v-if="storageError" class="storage-banner" data-testid="library-error" role="alert">
+      <span>{{ storageError }}</span>
+      <t-button data-testid="clear-invalid" size="small" variant="outline" @click="clearInvalid">清理无效本地数据</t-button>
     </div>
 
-  <div class="btn-row">
-    <button
-      v-for="type in TYPE_ORDER"
-      :key="type"
-      class="lib-tab"
-      :class="{ active: activeType === type }"
-      :style="tabStyle(type, activeType === type)"
-      @click="activeType = type"
-    >{{ LIBRARY_TYPE_LABELS[type] }}</button>
-  </div>
+    <div v-if="notice" class="notice-banner" data-testid="library-notice" role="status">{{ notice }}</div>
 
-  <template v-for="type in TYPE_ORDER" :key="type">
-    <template v-if="type === activeType">
-      <div v-if="customByType(type).length" class="section">
-        <t-typography-title level="h5">我的自定义</t-typography-title>
-        <div v-for="entry in customByType(type)" :key="entry.id" class="lib-entry">
-          <span class="intensity-bar" :style="intensityBarStyle(entry.workout)"></span>
-          <div class="lib-head">
-            <t-tag variant="light" :style="{ background: intensityColor(entry.type), color: '#fff', borderColor: 'transparent' }">{{ entry.type === "mixed" ? "混" : entry.type }}</t-tag>
-            <strong>{{ entry.name }}</strong>
-            <span class="muted">{{ entry.weeklyKmHint }}</span>
-          </div>
-          <div class="lib-dsl muted">{{ entry.dsl }}</div>
-          <div class="btn-row">
-            <t-button size="small" theme="primary" @click="copyDsl(entry.dsl)">复制 DSL</t-button>
-            <t-button size="small" theme="danger" variant="outline" @click="removeEntry(entry.id)">删除</t-button>
-          </div>
+    <nav class="category-row" aria-label="强度分类">
+      <button
+        v-for="category in CATEGORY_ORDER"
+        :key="category"
+        type="button"
+        class="category-chip"
+        :class="{ active: activeCategory === category }"
+        :style="chipStyle(category, activeCategory === category)"
+        :aria-pressed="activeCategory === category"
+        :data-testid="`category-${category}`"
+        @click="activeCategory = category"
+      >
+        {{ category === "mixed" ? "混合" : category }}
+      </button>
+      <span class="category-hint muted">{{ CATEGORY_LABELS[activeCategory] }}</span>
+    </nav>
+
+    <section class="library-section">
+      <h2>我的课程</h2>
+      <p v-if="customCourses.length === 0" class="empty-hint muted" data-testid="custom-empty">
+        这个分类还没有自定义课程。<button type="button" class="link" @click="createCourse">新建课程</button>或<button type="button" class="link" @click="importVisible = true">导入课程</button>。
+      </p>
+      <CourseCard
+        v-for="course in customCourses"
+        :key="course.id"
+        :course="course"
+        @edit="editCourse"
+        @copy="copyCourse"
+        @delete="askDelete"
+      />
+    </section>
+
+    <section class="library-section">
+      <h2>内置课程</h2>
+      <p v-if="builtinCourses.length === 0" class="empty-hint muted">这个分类暂时没有内置课程。</p>
+      <CourseCard
+        v-for="course in builtinCourses"
+        :key="course.id"
+        :course="course"
+        @copy="copyCourse"
+        @edit="editCourse"
+        @delete="askDelete"
+      />
+    </section>
+
+    <div v-if="pendingDelete" class="confirm-overlay" data-testid="delete-confirm" @click.self="pendingDelete = null">
+      <div class="confirm-card" role="alertdialog" aria-modal="true">
+        <h3>删除课程</h3>
+        <p>确定删除「{{ deleteLabel }}」吗？删除后无法恢复。</p>
+        <div class="confirm-actions">
+          <t-button variant="outline" @click="pendingDelete = null">取消</t-button>
+          <t-button data-testid="confirm-delete" theme="danger" @click="confirmDelete">删除</t-button>
         </div>
       </div>
+    </div>
 
-      <div class="section">
-        <t-typography-title level="h5">内置课程</t-typography-title>
-        <div v-for="entry in builtinByType(type)" :key="entry.id" class="lib-entry">
-          <span class="intensity-bar" :style="intensityBarStyle(entry.workout)"></span>
-          <div class="lib-head">
-            <t-tag variant="light" :style="{ background: intensityColor(entry.type), color: entry.type === 'mixed' ? '#fff' : '#fff', borderColor: 'transparent' }">{{ entry.type === "mixed" ? "混" : entry.type }}</t-tag>
-            <strong>{{ entry.name }}</strong>
-            <span class="muted">{{ entry.source }}</span>
-            <span class="muted">{{ entry.weeklyKmHint }}</span>
-          </div>
-          <div class="lib-dsl muted">{{ entry.dsl }}</div>
-          <div class="btn-row">
-            <t-button size="small" variant="outline" @click="copyDsl(entry.dsl)">复制 DSL</t-button>
-          </div>
-        </div>
-      </div>
-    </template>
-  </template>
+    <CourseImportDialog :visible="importVisible" @close="importVisible = false" @submit="submitImport" />
   </div>
 </template>
 
 <script setup>
 import { computed, ref } from "vue";
-import { BUILTIN_LIBRARY, INTENSITY_COLORS, LIBRARY_TYPE_LABELS, intensityBarStyle } from "@core";
-import { listCustomLibrary, removeCustomEntry } from "../stores/custom-library.js";
+import { useRoute, useRouter } from "vue-router";
+import {
+  BUILTIN_COURSES,
+  INTENSITY_COLORS,
+  LIBRARY_CATEGORIES,
+  LIBRARY_CATEGORY_LABELS,
+  cloneLibraryCourse,
+  listCoursesByCategory,
+} from "@core";
+import CourseCard from "../components/CourseCard.vue";
+import CourseImportDialog from "../components/CourseImportDialog.vue";
+import { setPendingDraft } from "../stores/course-draft.js";
+import { clearCourseLibrary, readCourseLibrary, removeCustomCourse } from "../stores/course-library.js";
 
-const TYPE_ORDER = ["E", "M", "T", "I", "R", "mixed"];
-const activeType = ref("T");
+const router = useRouter();
+const route = useRoute();
 
-const custom = computed(() => listCustomLibrary());
+const CATEGORY_ORDER = LIBRARY_CATEGORIES;
+const CATEGORY_LABELS = LIBRARY_CATEGORY_LABELS;
 
-function intensityColor(type) {
-  return INTENSITY_COLORS[type] ?? "#17211b";
+/** 保存课程后回到课程库时带上分类，避免新课程因为当前筛选而“看不见” */
+function initialCategory() {
+  const requested = String(route.query?.category ?? "");
+  return CATEGORY_ORDER.includes(requested) ? requested : "T";
 }
 
-function tabStyle(type, active) {
-  const color = intensityColor(type);
+const activeCategory = ref(initialCategory());
+const importVisible = ref(false);
+const pendingDelete = ref(null);
+const library = ref(readCourseLibrary());
+
+const storageError = computed(() => library.value.error);
+const notice = computed(() =>
+  route.query?.notice === "draft-lost" ? "导入或复制的草稿已失效（页面刷新后不会保留），请重新开始。" : "",
+);
+const customCourses = computed(() => listCoursesByCategory(library.value.courses, activeCategory.value));
+const builtinCourses = computed(() => listCoursesByCategory(BUILTIN_COURSES, activeCategory.value));
+const deleteLabel = computed(() => {
+  const course = pendingDelete.value;
+  if (!course) return "";
+  return course.workout.title?.trim() || course.workout.goal?.trim() || "未命名课程";
+});
+
+function reload() {
+  library.value = readCourseLibrary();
+}
+
+function chipStyle(category, active) {
+  const color = INTENSITY_COLORS[category] ?? "#5b6b7c";
   return active
-    ? { background: color, borderColor: color, color: "#fff", fontWeight: 700 }
+    ? { background: color, borderColor: color, color: "#fff" }
     : { background: `${color}1f`, borderColor: color, color };
 }
 
-function customByType(type) {
-  return custom.value.filter((item) => item.tags.includes(type));
+function createCourse() {
+  router.push({ path: "/library/new" });
 }
 
-function builtinByType(type) {
-  return BUILTIN_LIBRARY.filter((item) => item.tags.includes(type));
+function editCourse(course) {
+  router.push({ path: `/library/${course.id}/edit` });
 }
 
-async function copyDsl(dsl) {
+function copyCourse(course) {
+  let cloned;
   try {
-    await navigator.clipboard.writeText(dsl);
-    window.alert("DSL 已复制，可粘贴分享或在编辑器导入");
-  } catch {
-    window.prompt("复制以下 DSL：", dsl);
+    // 列表里的课程来自响应式对象，core 的复制使用 structuredClone，需要先还原为普通对象
+    cloned = cloneLibraryCourse(JSON.parse(JSON.stringify(course)));
+  } catch (error) {
+    window.alert(error instanceof Error ? error.message : "复制失败");
+    return;
   }
+  setPendingDraft(cloned, "copy");
+  router.push({ path: "/library/new", query: { source: "copy", course: course.id } });
 }
 
-function removeEntry(id) {
-  if (!window.confirm("删除该自定义课程？")) return;
-  removeCustomEntry(id);
-  custom.value = listCustomLibrary();
+function submitImport(workout) {
+  setPendingDraft(workout, "import");
+  importVisible.value = false;
+  router.push({ path: "/library/new", query: { source: "import" } });
+}
+
+function askDelete(course) {
+  pendingDelete.value = course;
+}
+
+function confirmDelete() {
+  const course = pendingDelete.value;
+  if (course) removeCustomCourse(course.id);
+  pendingDelete.value = null;
+  reload();
+}
+
+function clearInvalid() {
+  clearCourseLibrary();
+  reload();
 }
 </script>
 
 <style scoped>
-.lib-tab {
-  padding: 5px 14px;
+.library-page { display: grid; gap: 16px; }
+.library-hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.library-hero h1 { margin: 0 0 4px; font-size: 24px; }
+.hero-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.storage-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  color: #8e2d26;
+  background: #fff1ef;
+  border: 1px solid #efc3be;
+  border-radius: 10px;
+}
+.notice-banner {
+  padding: 10px 14px;
+  color: #8b6a1f;
+  background: #fff8e6;
+  border: 1px solid #e8d3a0;
+  border-radius: 10px;
+}
+.category-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.category-chip {
+  padding: 4px 14px;
   border-radius: 999px;
   border: 1px solid;
   font-size: 13px;
   cursor: pointer;
   background: transparent;
 }
-.section { margin: 16px 0; }
-.lib-entry {
-  margin-top: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--td-component-stroke);
-  border-left: 6px solid var(--td-component-stroke);
-  border-radius: 10px;
-}
-.lib-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.lib-dsl { font-size: 12px; margin: 6px 0; word-break: break-all; }
+.category-chip.active { font-weight: 700; }
+.category-hint { margin-left: 4px; }
+.library-section { display: grid; gap: 10px; }
+.library-section h2 { margin: 6px 0 0; font-size: 16px; }
+.empty-hint { margin: 0; padding: 14px; border: 1px dashed var(--td-component-stroke); border-radius: 10px; background: #fafbf9; }
+.link { border: none; background: none; padding: 0; color: #357a52; text-decoration: underline; cursor: pointer; font: inherit; }
+.confirm-overlay { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 16px; background: rgba(23, 33, 27, 0.42); }
+.confirm-card { width: min(420px, 100%); display: grid; gap: 10px; padding: 18px; border-radius: 14px; background: #fff; box-shadow: 0 24px 60px rgba(24, 63, 43, 0.28); }
+.confirm-card h3 { margin: 0; font-size: 16px; }
+.confirm-card p { margin: 0; color: #35424f; }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.muted { color: #607066; font-size: 13px; }
 </style>

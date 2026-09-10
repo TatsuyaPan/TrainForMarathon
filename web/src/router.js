@@ -3,6 +3,7 @@ import TrainingCalendar from "./views/TrainingCalendar.vue";
 import TrainingWeek from "./views/TrainingWeek.vue";
 import TrainingDay from "./views/TrainingDay.vue";
 import Library from "./views/Library.vue";
+import CourseEditor from "./views/CourseEditor.vue";
 import Courses from "./views/Courses.vue";
 import Course from "./views/Course.vue";
 import Paces from "./views/Paces.vue";
@@ -25,6 +26,8 @@ export const router = createRouter({
     { path: "/courses", component: Courses },
     { path: "/course/:id", component: Course, props: true },
     { path: "/library", component: Library },
+    { path: "/library/new", component: CourseEditor },
+    { path: "/library/:id/edit", component: CourseEditor, props: true },
     { path: "/paces", component: Paces },
     { path: "/fitness", component: Fitness },
     { path: "/settings", component: Settings },

@@ -20,12 +20,23 @@ vi.mock("@core", async () => ({
 vi.mock("../src/app-context.js", () => ({ service }));
 vi.mock("../src/composables/useTrainingData.js", () => ({ useTrainingData: () => trainingData }));
 
+const dayWorkout = {
+  dslVersion: 1,
+  goal: "乳酸阈刺激",
+  phases: [
+    {
+      role: "main",
+      segments: [{ kind: "run", load: { type: "time", seconds: 1200 }, target: { type: "daniels", zone: "T" } }],
+    },
+  ],
+};
+
 const day = {
   id: "day-1",
   date: "2026-09-10",
   label: "阈值训练",
   items: [{ type: "T", text: "20min T" }],
-  workout: { goal: "乳酸阈刺激", segments: [] },
+  workout: dayWorkout,
 };
 const plan = { id: "plan-1", paces: {}, weeks: [{ week: 1, days: [day] }] };
 

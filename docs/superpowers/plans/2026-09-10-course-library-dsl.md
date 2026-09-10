@@ -43,14 +43,17 @@
 - [x] `stores/course-draft.js`：页面级草稿传递（导入/复制）
 - [x] `components/StructurePreview.vue`、`WorkoutStructure.vue`、`CourseCard.vue`、`CourseImportDialog.vue`
 - [x] `components/CourseStructureEditor.vue`、`CourseStepEditor.vue`
+- [x] `components/WorkoutEditor.vue`：结构编辑器 + 聚焦步骤面板（桌面右栏 / 移动端覆盖层）
 - [x] `views/Library.vue` 重写；新增 `views/CourseEditor.vue`；路由 `/library/new`、`/library/:id/edit`
 - [x] `views/EditWorkout.vue` 复用新结构编辑器
+- [x] 移除旧模型残留：`views/SegmentEditor.vue`、`views/WorkoutEditorPanel.vue`、`stores/custom-library.js`
 
 ### 五、验证
 
 - [x] core 单测：版本分发、元数据、五种步骤、目标类型、属性限制、嵌套、往返、汇总、内置课程
 - [x] Web 组件测试：卡片、导入、编辑器、存储
 - [x] `npm test`（core + web）、`npm run typecheck`、`web npm run build`
+- [x] 浏览器冒烟测试：`web/test/e2e_course_library.py`（展示/展开/导入/新建/编辑/复制/删除）与 `web/test/e2e_session_lifecycle.py`
 
 ## 验收
 

@@ -14,8 +14,16 @@ vi.mock("vue-router", () => ({ useRouter: () => ({ push }) }));
 vi.mock("../src/app-context.js", () => ({ service }));
 
 const plannedWorkout = {
+  dslVersion: 1,
   goal: "有氧耐力",
-  segments: [{ kind: "step", intensity: { type: "pace", zone: "E" }, load: { type: "distance", meters: 8000 } }],
+  phases: [
+    {
+      role: "main",
+      segments: [
+        { kind: "run", load: { type: "distance", meters: 8000 }, target: { type: "daniels", zone: "E" } },
+      ],
+    },
+  ],
 };
 
 function session(overrides = {}) {
@@ -53,7 +61,7 @@ async function mountPage(currentSession = session()) {
         "t-form-item": { template: "<label><slot /></label>" },
         "t-input-number": InputNumberStub,
         "t-textarea": { template: "<textarea />" },
-        WorkoutEditorPanel: true,
+        WorkoutEditor: true,
       },
     },
   });
@@ -71,9 +79,9 @@ describe("SessionRecord", () => {
     const wrapper = await mountPage();
 
     expect(wrapper.text()).toContain("按计划完成");
-    expect(wrapper.findComponent({ name: "WorkoutEditorPanel" }).exists()).toBe(false);
+    expect(wrapper.findComponent({ name: "WorkoutEditor" }).exists()).toBe(false);
     await wrapper.get('[data-testid="adjust-workout"]').trigger("click");
-    expect(wrapper.findComponent({ name: "WorkoutEditorPanel" }).exists()).toBe(true);
+    expect(wrapper.findComponent({ name: "WorkoutEditor" }).exists()).toBe(true);
   });
 
   it("restores an existing unique record", async () => {
@@ -87,7 +95,7 @@ describe("SessionRecord", () => {
     expect(wrapper.text()).toContain("编辑训练记录");
     expect(wrapper.vm.$.setupState.form.actualWorkout).toEqual(expect.objectContaining({ goal: "实际节奏跑" }));
     expect(wrapper.vm.$.setupState.form.adjustActualWorkout).toBe(true);
-    expect(wrapper.findComponent({ name: "WorkoutEditorPanel" }).exists()).toBe(true);
+    expect(wrapper.findComponent({ name: "WorkoutEditor" }).exists()).toBe(true);
     expect(wrapper.get('[data-testid="rpe-input"]').attributes("value")).toBe("7");
   });
 

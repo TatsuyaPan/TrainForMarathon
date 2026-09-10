@@ -21,7 +21,7 @@ export function toCompleteSessionInput(form) {
   const actualWorkout = clone(form.actualWorkout);
   if (actualWorkout) {
     const errors = validateWorkout(actualWorkout);
-    if (errors.length > 0) throw new Error(errors.join("\n"));
+    if (errors.length > 0) throw new Error(errors.map((issue) => issue.message).join("\n"));
   }
 
   return compact({

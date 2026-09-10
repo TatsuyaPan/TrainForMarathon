@@ -10,12 +10,18 @@ DATE = "2026-09-10"
 
 def storage_script() -> str:
     workout = {
+        "dslVersion": 1,
         "goal": "有氧耐力",
-        "segments": [
+        "phases": [
             {
-                "kind": "step",
-                "intensity": {"type": "pace", "zone": "E"},
-                "load": {"type": "distance", "meters": 8000},
+                "role": "main",
+                "segments": [
+                    {
+                        "kind": "run",
+                        "load": {"type": "distance", "meters": 8000},
+                        "target": {"type": "daniels", "zone": "E"},
+                    }
+                ],
             }
         ],
     }
