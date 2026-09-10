@@ -70,9 +70,9 @@
         <dl class="headline" data-testid="editor-headline">
           <div v-if="presentation.headline.durationLabel"><dt>已知时间</dt><dd>{{ presentation.headline.durationLabel }}</dd></div>
           <div v-if="presentation.headline.distanceLabel"><dt>已知距离</dt><dd>{{ presentation.headline.distanceLabel }}</dd></div>
-          <div v-if="presentation.headline.workLabel"><dt>主训练</dt><dd>{{ presentation.headline.workLabel }}</dd></div>
-          <div v-if="presentation.headline.recoveryLabel"><dt>恢复</dt><dd>{{ presentation.headline.recoveryLabel }}</dd></div>
-          <div v-if="presentation.headline.restLabel"><dt>休息</dt><dd>{{ presentation.headline.restLabel }}</dd></div>
+          <div v-if="workTotals"><dt>主训练</dt><dd>{{ workTotals }}</dd></div>
+          <div v-if="recoveryTotals"><dt>恢复</dt><dd>{{ recoveryTotals }}</dd></div>
+          <div v-if="restTotals"><dt>休息</dt><dd>{{ restTotals }}</dd></div>
           <div><dt>步骤</dt><dd>{{ presentation.headline.stepCount }} 个 · {{ presentation.headline.repeatCount }} 个循环</dd></div>
         </dl>
       </section>
@@ -110,6 +110,8 @@ import {
   createLibraryCourseId,
   createLibraryCourse,
   createWorkoutPresentation,
+  formatDistanceLabel,
+  formatDurationLabel,
   normalizeWorkout,
   parseWorkoutDsl,
   serializeWorkout,
@@ -138,6 +140,22 @@ const displayTitle = computed(() => {
   return workout?.title?.trim() || workout?.goal?.trim() || "新建课程";
 });
 const presentation = computed(() => createWorkoutPresentation(draft.value.workout));
+
+/** 时长/距离合并为一行（如「9 分钟 + 1.2 公里」），标签由 dt 提供，避免重复 */
+function totalsText(durationSeconds, distanceMeters) {
+  const parts = [];
+  if (durationSeconds > 0) parts.push(formatDurationLabel(durationSeconds));
+  if (distanceMeters > 0) parts.push(formatDistanceLabel(distanceMeters));
+  return parts.join(" + ");
+}
+
+const workTotals = computed(() =>
+  totalsText(presentation.value.headline.workDurationSeconds, presentation.value.headline.workDistanceMeters),
+);
+const recoveryTotals = computed(() =>
+  totalsText(presentation.value.headline.recoveryDurationSeconds, presentation.value.headline.recoveryDistanceMeters),
+);
+const restTotals = computed(() => totalsText(presentation.value.headline.restDurationSeconds, 0));
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));

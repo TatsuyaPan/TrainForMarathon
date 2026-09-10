@@ -74,6 +74,16 @@ describe("CourseEditor", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  it("shows summary values without repeating the row label", async () => {
+    const wrapper = await mountEditor();
+    const rows = wrapper.findAll('[data-testid="editor-headline"] div');
+    const rowFor = (label) => rows.find((row) => row.get("dt").text() === label);
+
+    // 默认草稿是 30 分钟主训练：dd 只是数值，不应再带上「主训练」
+    expect(rowFor("主训练").get("dd").text()).toBe("30 分钟");
+    expect(wrapper.get('[data-testid="editor-headline"]').text()).not.toContain("30 分钟 主训练");
+  });
+
   it("saves a validated course and returns to the library", async () => {
     const wrapper = await mountEditor();
     await wrapper.get('[data-testid="course-title"]').setValue("我的新课程");
