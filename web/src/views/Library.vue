@@ -146,8 +146,8 @@ function editCourse(course) {
 function copyCourse(course) {
   let cloned;
   try {
-    // 列表里的课程来自响应式对象，先还原成普通对象，避免把响应式引用写进课程库
-    cloned = cloneLibraryCourse(JSON.parse(JSON.stringify(course)));
+    // 深拷贝由 core 负责：列表里的课程即使来自响应式对象也可以直接传入
+    cloned = cloneLibraryCourse(course);
   } catch (error) {
     notifyError(error instanceof Error ? error.message : "复制失败");
     return;

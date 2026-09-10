@@ -36,7 +36,7 @@
 
 <script setup>
 import { computed, nextTick, ref } from "vue";
-import { RUN_ROLE_LABELS, removeSegment, replaceSegment, segmentAt } from "@core";
+import { RUN_ROLE_LABELS, removeSegment, replaceSegment, segmentAt, stripUndefinedFields } from "@core";
 import CourseStructureEditor from "./CourseStructureEditor.vue";
 import CourseStepEditor from "./CourseStepEditor.vue";
 
@@ -130,9 +130,9 @@ function removeSelected() {
   }
 }
 
-/** 去掉值为 undefined 的字段，避免 JSON 往返后出现空键 */
+/** 切换步骤类型后会留下 undefined 键，交给 core 的跨端实现统一清理 */
 function cleanSegment(segment) {
-  return JSON.parse(JSON.stringify(segment));
+  return stripUndefinedFields(segment);
 }
 </script>
 

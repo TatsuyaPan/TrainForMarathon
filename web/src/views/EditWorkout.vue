@@ -89,6 +89,7 @@ import {
   LIBRARY_CATEGORIES,
   createDefaultWorkout,
   createWorkoutPresentation,
+  deepClone,
   serializeWorkout,
   setDayWorkout,
   setSessionPlannedWorkout,
@@ -153,11 +154,6 @@ function presentationOf(value) {
   return createWorkoutPresentation(value);
 }
 
-/** 统一用 JSON 深拷贝成普通对象，避免把响应式引用带进 core 的纯函数结果 */
-function clone(value) {
-  return value === null || value === undefined ? value : JSON.parse(JSON.stringify(value));
-}
-
 function showError(message) {
   errorMessage.value = message;
 }
@@ -168,13 +164,13 @@ function applyWorkout(next) {
 }
 
 function applyCourse(course) {
-  workout.value = clone(course.workout);
+  workout.value = deepClone(course.workout);
   libraryOpen.value = false;
   errorMessage.value = "";
 }
 
 function applyImportedWorkout(imported) {
-  workout.value = clone(imported);
+  workout.value = deepClone(imported);
   importVisible.value = false;
   errorMessage.value = "";
 }
@@ -200,12 +196,12 @@ async function persist() {
 
 /** 追加训练：只改写这一次训练的计划内容 */
 async function persistSessionWorkout() {
-  session.value = await setSessionPlannedWorkout(service, session.value, clone(workout.value));
+  session.value = await setSessionPlannedWorkout(service, session.value, deepClone(workout.value));
 }
 
 /** 当天课表：写回计划，并让未结束的计划训练跟随更新 */
 async function persistDayWorkout() {
-  const saved = await setDayWorkout(service, plan.value, props.dayId, clone(workout.value));
+  const saved = await setDayWorkout(service, plan.value, props.dayId, deepClone(workout.value));
   plan.value = saved.plan;
   day.value = saved.day;
 }
@@ -232,7 +228,7 @@ onMounted(async () => {
   }
   const planned = editingSession.value ? session.value.plannedWorkout : day.value.workout;
   // 无结构化课表时给出可编辑草稿（含休息日补课、追加训练补计划）
-  workout.value = planned ? clone(planned) : createDefaultWorkout();
+  workout.value = planned ? deepClone(planned) : createDefaultWorkout();
 });
 </script>
 

@@ -344,8 +344,8 @@ async function addSession() {
   addError.value = "";
   try {
     const input = { label };
-    // 课程里的课表是响应式对象/模板引用，写入会话前先转成普通对象
-    if (pickedCourse.value) input.plannedWorkout = JSON.parse(JSON.stringify(pickedCourse.value.workout));
+    // core 写入会话前会自己深拷贝，课程里的响应式课表可以直接传入
+    if (pickedCourse.value) input.plannedWorkout = pickedCourse.value.workout;
     await addExtraSession(service, plan.value.id, day.value.id, input);
     sessions.value = sortSessions(await refreshDaySessions(day.value.id));
     closeAdd();

@@ -110,6 +110,7 @@ import {
   createLibraryCourseId,
   createLibraryCourse,
   createWorkoutPresentation,
+  deepClone,
   formatDistanceLabel,
   formatDurationLabel,
   inferLibraryCategory,
@@ -158,10 +159,6 @@ const recoveryTotals = computed(() =>
 );
 const restTotals = computed(() => totalsText(presentation.value.headline.restDurationSeconds, 0));
 
-function clone(value) {
-  return JSON.parse(JSON.stringify(value));
-}
-
 function backToLibrary() {
   router.push({ path: "/library" });
 }
@@ -193,7 +190,7 @@ onMounted(() => {
       fatal.value = "找不到这门自定义课程，可能已被删除。";
       return;
     }
-    draft.value = clone(found);
+    draft.value = deepClone(found);
     return;
   }
 
@@ -208,13 +205,13 @@ onMounted(() => {
     }
     draft.value = source === "import"
       ? newDraft(pending.draft, { category: inferLibraryCategory(pending.draft), source: "导入" })
-      : clone(pending.draft);
+      : deepClone(pending.draft);
     dirty.value = true;
     return;
   }
 
   if (pending) {
-    draft.value = clone(pending.draft);
+    draft.value = deepClone(pending.draft);
     dirty.value = true;
     return;
   }
@@ -234,7 +231,7 @@ function newDraft(workout, overrides = {}) {
     tags: [],
     source: overrides.source ?? "自定义",
     workout: {
-      ...clone(workout),
+      ...deepClone(workout),
       dslVersion: workout.dslVersion ?? CURRENT_WORKOUT_DSL_VERSION,
     },
   };
@@ -252,7 +249,7 @@ function save() {
   }
 
   const workout = normalizeWorkout({
-    ...clone(draft.value.workout),
+    ...deepClone(draft.value.workout),
     goal,
     dslVersion: draft.value.workout.dslVersion ?? CURRENT_WORKOUT_DSL_VERSION,
   });
