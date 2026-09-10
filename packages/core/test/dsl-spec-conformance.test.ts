@@ -21,6 +21,7 @@ import { parseWorkoutDslV1 } from "../src/dsl/v1.js";
  */
 
 const SPEC_ROOT = fileURLToPath(new URL("../../../spec/dsl/", import.meta.url));
+const PACKAGE_ROOT = fileURLToPath(new URL("../", import.meta.url));
 
 function specVersionDirs(): number[] {
   if (!existsSync(SPEC_ROOT)) return [];
@@ -100,6 +101,18 @@ describe("冻结规范与解析器一一对应", () => {
       expect(versions, `注册了版本 ${version} 但 spec/dsl/v${version}/ 不存在`).toContain(version);
     }
     expect(CURRENT_WORKOUT_DSL_VERSION).toBe(Math.max(...versions));
+  });
+
+  it("每个版本都能被外部按版本子路径引用", () => {
+    const manifest = JSON.parse(readFileSync(path.join(PACKAGE_ROOT, "package.json"), "utf8")) as {
+      exports?: Record<string, { import?: string; types?: string }>;
+    };
+    // 平台可以只依赖某一版解析器：import { parseWorkoutDslV1 } from "@train-for-marathon/core/dsl/v1"
+    expect(manifest.exports?.["./dsl/*"]?.import).toBe("./dist/dsl/*.js");
+    for (const version of SUPPORTED_WORKOUT_DSL_VERSIONS) {
+      const implementation = path.join(PACKAGE_ROOT, "src", "dsl", `v${version}.ts`);
+      expect(existsSync(implementation), `版本 ${version} 缺少 packages/core/src/dsl/v${version}.ts`).toBe(true);
+    }
   });
 });
 

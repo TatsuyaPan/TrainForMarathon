@@ -17,6 +17,8 @@ spec/dsl/
 2. **冻结不可改。** 已发布版本目录中的文件只允许修正事实性笔误，且必须单独提交、单独说明；语义变更一律进入新版本目录。
 3. **解析器与版本一一对应。** core 的 `packages/core/src/dsl/v<版本>.ts` 是该版本的基础实现；每个版本导出
    `parseWorkoutDslV<版本>(text)` 与 `serializeWorkoutV<版本>(workout, options?)`。
+   平台也可以只依赖某一版：`import { parseWorkoutDslV1 } from "@train-for-marathon/core/dsl/v1"`
+   （子路径入口与版本目录一一对应，不引入其它版本的解析器）。
 4. **统一入口负责分发。** `packages/core/src/dsl/registry.ts` 提供 `CURRENT_WORKOUT_DSL_VERSION`、`detectWorkoutDslVersion`、`parseWorkoutDsl`、`serializeWorkout`。未声明版本时使用平台当前最新版解析器；显式声明了不支持的版本时抛出版本错误，不猜测、不降级。
 5. **平台可自带解析器。** 平台可以只依赖 core 的默认实现，也可以自行实现或替换某个版本的解析器，只要满足冻结规范中的无损往返要求。
 6. **规范里的示例是可执行的。** 每份规范「合法示例」一节中的每个 ```` ```text ```` 代码块都会被一致性测试解析并往返校验，因此示例本身就是实现必须满足的验收用例。
