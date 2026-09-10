@@ -65,6 +65,8 @@ A dedicated `SessionRecord.vue` route owns the unique record form for one sessio
 - Opening a `done` session restores and updates its existing unique record.
 - A session without planned content may still be completed with metrics and/or a log; structured actual content is optional, matching the core model.
 
+The form model itself is platform-neutral and lives in core (`packages/core/src/session-record.ts`): `createSessionRecordForm` initializes or restores the record, `toCompleteSessionInput` validates and normalizes it into the completion payload, `resetActualWorkoutToPlan` returns to "completed as planned". `SessionRecord.vue` only renders that model, so the mini program can reuse the same rules without copying them.
+
 ### Shared workout editor
 
 The reusable workout composition UI is extracted into `WorkoutEditorPanel.vue`. Both the existing plan editor and the session record page use it so that runners never need to enter the internal Workout DSL. DSL import/export remains an advanced function of the plan editor and is not the primary record input.
@@ -93,9 +95,9 @@ Sessions therefore carry an explicit origin: `plan` (the slot that follows the p
 TrainingDay
   -> ensureDaySessions / addExtraSession / skipSession
   -> SessionRecord route
-       -> initialize form from the unique session record or planned workout
+       -> createSessionRecordForm (core): initialize from the unique record or planned workout
        -> optional visual Workout adjustment
-       -> validate and normalize record fields
+       -> toCompleteSessionInput (core): validate and normalize record fields
        -> completeSession
        -> TrainingDay reloads sessions and daily aggregate progress
 ```

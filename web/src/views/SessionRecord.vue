@@ -109,9 +109,15 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import { completeSession, createDefaultWorkout, createWorkoutPresentation } from "@core";
+import {
+  completeSession,
+  createDefaultWorkout,
+  createSessionRecordForm,
+  createWorkoutPresentation,
+  resetActualWorkoutToPlan,
+  toCompleteSessionInput,
+} from "@core";
 import { service } from "../app-context.js";
-import { createSessionRecordForm, resetActualWorkoutToPlan, toCompleteSessionInput } from "../session-record-form.js";
 import WorkoutEditor from "../components/WorkoutEditor.vue";
 
 const props = defineProps({

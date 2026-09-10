@@ -12,6 +12,7 @@ export * from "./fitness.js";
 export * from "./beginner-table.js";
 export * from "./training-visuals.js";
 export * from "./workflow.js";
+export * from "./session-record.js";
 export * from "./pace.js";
 export * from "./plans/validate.js";
 export * from "./plans/five-week.js";

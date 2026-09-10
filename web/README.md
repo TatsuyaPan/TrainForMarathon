@@ -82,7 +82,6 @@ web/
     main.js              # 挂载、全局样式与错误处理
     router.js            # hash 路由
     app-context.js       # 全局 service、运动员缓存与能力保存
-    session-record-form.js        # 训练记录表单的纯转换逻辑
     stores/local-storage-store.js # localStorage DataStore
     stores/course-library.js      # 自定义课程库读写与校验
     stores/course-draft.js        # 页面级草稿传递（导入/复制）
