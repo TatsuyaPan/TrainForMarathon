@@ -50,6 +50,7 @@ The aggregate distance and duration are sums of completed sessions only. The agg
 - `skipped`: offers **Change to completed**.
 - **Add training** creates another `planned` session for the same day.
 - A rest day starts with zero sessions but may receive an extra session.
+- The header shows a day summary for multi-session days: session count, `done` / `skipped` / `planned` counts, the accumulated actual distance and duration of finished sessions, and the same aggregate status the calendar and weekly view show. The rule lives in core (`summarizeDaySessions`), so every surface reports the same numbers.
 
 The page delegates lifecycle transitions to core workflow functions. It does not directly construct status transitions or write session documents.
 

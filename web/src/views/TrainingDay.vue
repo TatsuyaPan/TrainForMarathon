@@ -8,7 +8,17 @@
           {{ day.label }}
           <t-tag v-if="dayTypeText" variant="light">{{ dayTypeText }}</t-tag>
         </h1>
-        <p>当天共有 {{ sessions.length }} 次训练</p>
+        <div v-if="daySummary.total > 0" class="day-summary" data-testid="day-summary">
+          <t-tag v-if="daySummary.status" data-testid="day-summary-status" variant="light">
+            {{ PROGRESS_STATUS_LABELS[daySummary.status] }}
+          </t-tag>
+          <span>当天 {{ daySummary.total }} 次训练</span>
+          <span v-if="daySummary.done > 0">已完成 {{ daySummary.done }}</span>
+          <span v-if="daySummary.skipped > 0">未进行 {{ daySummary.skipped }}</span>
+          <span v-if="daySummary.planned > 0">待完成 {{ daySummary.planned }}</span>
+          <span v-if="daySummary.actualDistanceKm != null" class="sum-strong">累计 {{ daySummary.actualDistanceKm }} km</span>
+          <span v-if="daySummary.actualDurationMinutes != null" class="sum-strong">累计 {{ daySummary.actualDurationMinutes }} min</span>
+        </div>
       </div>
       <div class="hero-actions">
         <t-button size="small" variant="outline" @click="$router.push('/training')">训练周期</t-button>
@@ -177,6 +187,7 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import {
   LIBRARY_CATEGORY_LABELS,
+  PROGRESS_STATUS_LABELS,
   SESSION_STATUS_LABELS,
   addExtraSession,
   createWorkoutPresentation,
@@ -187,6 +198,7 @@ import {
   listAllCourses,
   removeSession,
   skipSession,
+  summarizeDaySessions,
   trainingTypeText,
 } from "@core";
 import { service } from "../app-context.js";
@@ -229,6 +241,9 @@ function onCourseChange() {
 
 /** 当天在本周里的序号（调整课表按周内序号定位） */
 const dayIndex = computed(() => (week.value ? week.value.days.findIndex((entry) => entry.id === day.value?.id) : -1));
+
+/** 一天可以有多次训练：当日小结（次数与已完成累计）由 core 统一汇总 */
+const daySummary = computed(() => summarizeDaySessions(sessions.value));
 
 /** 计划里的日期标题是紧凑记号（R、T + R、跑休…），补一份中文类型便于阅读 */
 const dayTypeText = computed(() => {
@@ -371,6 +386,16 @@ watch(() => props.date, async () => {
 .add-heading span { color: #8b6a1f; font-size: 11px; font-weight: 800; letter-spacing: 0.14em; }
 .day-hero h1 { margin: 6px 0 2px; font-size: clamp(28px, 4vw, 40px); color: #183f2b; }
 .day-hero p { margin: 0; color: #607066; }
+.day-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  font-size: 13px;
+  color: #607066;
+}
+.day-summary .sum-strong { color: #183f2b; font-weight: 600; font-variant-numeric: tabular-nums; }
 .hero-actions,
 .session-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .session-list { position: relative; display: grid; gap: 12px; }

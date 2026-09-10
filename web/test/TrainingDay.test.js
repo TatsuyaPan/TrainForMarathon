@@ -129,6 +129,29 @@ describe("TrainingDay", () => {
     expect(cards[2].text()).toContain("改为已完成");
   });
 
+  it("summarizes a multi-session day for the reader", async () => {
+    const wrapper = await mountDay([
+      session(0, "done", { actualDistanceKm: 10, actualDurationMinutes: 50 }),
+      session(1, "done", { actualDistanceKm: 5.5, actualDurationMinutes: 30 }),
+      session(2, "skipped"),
+    ]);
+
+    const summary = wrapper.get('[data-testid="day-summary"]').text();
+    expect(summary).toContain("当天 3 次训练");
+    expect(summary).toContain("已完成 2");
+    expect(summary).toContain("未进行 1");
+    // 只有已完成的训练计入累计
+    expect(summary).toContain("累计 15.5 km");
+    expect(summary).toContain("累计 80 min");
+    // 聚合状态与日历/周视图一致（完成 + 跳过 → 部分完成）
+    expect(wrapper.get('[data-testid="day-summary-status"]').text()).toBe("部分完成");
+  });
+
+  it("shows no day summary when the day has no session at all", async () => {
+    const wrapper = await mountDay([]);
+    expect(wrapper.find('[data-testid="day-summary"]').exists()).toBe(false);
+  });
+
   it("routes every record action to the session's unique record", async () => {
     const current = session(0, "planned");
     const wrapper = await mountDay([current]);

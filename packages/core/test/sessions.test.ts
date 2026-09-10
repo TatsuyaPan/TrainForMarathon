@@ -9,6 +9,7 @@ import {
   removeSession,
   sessionsToProgress,
   skipSession,
+  summarizeDaySessions,
   syncDayPlannedWorkout,
 } from "../src/workflow.js";
 import type { DataStore } from "../src/workflow.js";
@@ -71,6 +72,66 @@ describe("training session lifecycle", () => {
     ])[0]).toMatchObject({ status: "partial", updatedAt: "2026-09-10T20:00:00.000Z" });
 
     expect(sessionsToProgress([session("plan-0", "planned")])).toEqual([]);
+  });
+
+  it("summarizes a training day for the day header", () => {
+    const session = (
+      id: string,
+      status: TrainingSession["status"],
+      overrides: Partial<TrainingSession> = {},
+    ): TrainingSession => ({
+      id,
+      planId: "plan-1",
+      dayId: "day-1",
+      seq: Number(id.at(-1)),
+      label: id,
+      status,
+      createdAt: "2026-09-10T08:00:00.000Z",
+      updatedAt: "2026-09-10T08:00:00.000Z",
+      ...overrides,
+    });
+
+    // 一天三次训练：完成两次、跳过一次
+    const summary = summarizeDaySessions([
+      session("done-0", "done", { actualDistanceKm: 10, actualDurationMinutes: 50 }),
+      session("done-1", "done", { actualDistanceKm: 5, actualDurationMinutes: 28, actualRpe: 6 }),
+      session("skip-2", "skipped"),
+    ]);
+    expect(summary).toEqual({
+      total: 3,
+      planned: 0,
+      done: 2,
+      skipped: 1,
+      actualDistanceKm: 15,
+      actualDurationMinutes: 78,
+      status: "partial",
+    });
+
+    // 全部待完成：没有聚合状态，日历上不产生记录
+    expect(summarizeDaySessions([session("plan-0", "planned"), session("plan-1", "planned")])).toMatchObject({
+      total: 2,
+      planned: 2,
+      status: undefined,
+    });
+
+    // 完成但没填距离/时长：计数照常，合计保持未记录
+    expect(summarizeDaySessions([session("done-0", "done", { log: "只写了日志" })])).toMatchObject({
+      done: 1,
+      status: "completed",
+      actualDistanceKm: undefined,
+      actualDurationMinutes: undefined,
+    });
+
+    // 没有训练安排的休息日
+    expect(summarizeDaySessions([])).toEqual({
+      total: 0,
+      planned: 0,
+      done: 0,
+      skipped: 0,
+      actualDistanceKm: undefined,
+      actualDurationMinutes: undefined,
+      status: undefined,
+    });
   });
 
   it("lazily generates one planned session per training day (rest days excluded)", async () => {

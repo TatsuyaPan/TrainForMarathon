@@ -810,6 +810,44 @@ function assertValidWorkout(workout: Workout): Workout {
   return normalizeWorkout(deepClone(workout));
 }
 
+export interface DaySessionSummary {
+  /** 当天会话总数（0 表示这一天没有训练安排） */
+  total: number;
+  planned: number;
+  done: number;
+  skipped: number;
+  /** 已完成训练的实际距离合计（km）；没有任何记录时为 undefined */
+  actualDistanceKm?: number;
+  /** 已完成训练的实际时长合计（分钟）；没有任何记录时为 undefined */
+  actualDurationMinutes?: number;
+  /**
+   * 当天聚合状态，与日历/周视图里的 progress 口径一致；
+   * 全部待完成或当天没有训练时为 undefined（不产生记录）。
+   */
+  status?: ProgressStatus;
+}
+
+/**
+ * 一天可以有多个训练：把同一训练日的会话汇成一份当日小结。
+ *
+ * 日历、周视图、训练日页与统计共用这一处规则——聚合状态与距离/时长合计
+ * 只在这里算一次，各端不再各写一遍。
+ */
+export function summarizeDaySessions(sessions: readonly TrainingSession[]): DaySessionSummary {
+  const list = sessions ?? [];
+  const done = list.filter((session) => session.status === "done");
+  const summary: DaySessionSummary = {
+    total: list.length,
+    planned: list.filter((session) => session.status === "planned").length,
+    done: done.length,
+    skipped: list.filter((session) => session.status === "skipped").length,
+    actualDistanceKm: sumOptional(done.map((session) => session.actualDistanceKm)),
+    actualDurationMinutes: sumOptional(done.map((session) => session.actualDurationMinutes)),
+  };
+  const settled = summary.done + summary.skipped > 0;
+  return { ...summary, status: settled ? aggregateSessionStatus(list) : undefined };
+}
+
 /** 会话 → 统计记录：done→completed，skipped→skipped；planned 不计入 */
 export function sessionsToProgress(sessions: readonly TrainingSession[]): ProgressRecord[] {
   const byDay = new Map<string, TrainingSession[]>();
@@ -820,13 +858,13 @@ export function sessionsToProgress(sessions: readonly TrainingSession[]): Progre
   }
 
   return [...byDay.entries()].flatMap(([dayId, group]) => {
-    if (group.every((session) => session.status === "planned")) return [];
-    const completed = group.filter((session) => session.status === "done");
+    const summary = summarizeDaySessions(group);
+    if (!summary.status) return [];
     return [{
       dayId,
-      status: aggregateSessionStatus(group),
-      actualDistanceKm: sumOptional(completed.map((session) => session.actualDistanceKm)),
-      actualDurationMinutes: sumOptional(completed.map((session) => session.actualDurationMinutes)),
+      status: summary.status,
+      actualDistanceKm: summary.actualDistanceKm,
+      actualDurationMinutes: summary.actualDurationMinutes,
       updatedAt: latestSessionTimestamp(group),
     }];
   });
