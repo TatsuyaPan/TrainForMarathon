@@ -48,10 +48,35 @@ def storage_script() -> str:
         "createdAt": "2026-09-10T08:00:00.000Z",
         "updatedAt": "2026-09-10T08:00:00.000Z",
     }
+    # 自定义课程库与训练数据分开存储：重置训练数据时必须保留
+    course = {
+        "id": "course-e2e-keep",
+        "origin": "custom",
+        "category": "E",
+        "tags": ["E"],
+        "source": "自定义",
+        "workout": {
+            "dslVersion": 1,
+            "goal": "有氧基础",
+            "phases": [
+                {
+                    "role": "main",
+                    "segments": [
+                        {
+                            "kind": "run",
+                            "load": {"type": "time", "seconds": 2400},
+                            "target": {"type": "daniels", "zone": "E"},
+                        }
+                    ],
+                }
+            ],
+        },
+    }
     values = {
         "tfm:athletes:current": athlete,
         f"tfm:plans:{PLAN_ID}": plan,
         f"tfm:sessions:{session['id']}": session,
+        "tfm:course-library:v1": [course],
     }
     statements = [
         f"localStorage.setItem({json.dumps(key)}, {json.dumps(json.dumps(value, ensure_ascii=False))});"
@@ -142,10 +167,10 @@ with sync_playwright() as playwright:
     assert not cleared.get("vdot"), cleared
     shot(page, "fitness-cleared")
 
-    # 6) 重置全部数据：配置、课表、会话一并清空
+    # 6) 清空训练数据：配置、课表、会话一并清空，自定义课程库保留
     page.goto(f"{BASE_URL}/#/settings")
     page.wait_for_load_state("networkidle")
-    page.get_by_role("button", name="删除课表并重置全部数据").click()
+    page.get_by_role("button", name="删除课表并清空训练数据").click()
     page.wait_for_timeout(500)
     keys = page.evaluate("Object.keys(localStorage)")
     assert not [key for key in keys if key.startswith("tfm:plans:")], keys
@@ -153,6 +178,8 @@ with sync_playwright() as playwright:
     assert not [key for key in keys if key.startswith("tfm:progress:")], keys
     reset_athlete = page.evaluate("JSON.parse(localStorage.getItem('tfm:athletes:current'))")
     assert not reset_athlete.get("planId"), reset_athlete
+    kept_courses = page.evaluate("JSON.parse(localStorage.getItem('tfm:course-library:v1'))")
+    assert [item.get("id") for item in kept_courses] == ["course-e2e-keep"], kept_courses
 
     page.goto(f"{BASE_URL}/#/training")
     page.wait_for_load_state("networkidle")

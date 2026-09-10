@@ -98,7 +98,8 @@
   </t-card>
 
   <t-card v-if="hasPlan" :bordered="true" style="margin-top: 12px">
-    <t-button theme="danger" variant="outline" @click="resetAll">删除课表并重置全部数据</t-button>
+    <p class="muted">删除配置、课表、会话与打卡记录，回到未配置状态；自定义课程库会保留。</p>
+    <t-button theme="danger" variant="outline" @click="resetAll">删除课表并清空训练数据</t-button>
   </t-card>
   </div>
 </template>
@@ -208,7 +209,7 @@ async function save() {
 }
 
 async function resetAll() {
-  if (!window.confirm("将删除配置、课表和全部打卡记录，且不可恢复。确定继续？")) return;
+  if (!window.confirm("将删除配置、课表、会话和全部打卡记录，且不可恢复；自定义课程库会保留。确定继续？")) return;
   await resetSetup(service);
   invalidateAthlete();
   window.location.reload();
