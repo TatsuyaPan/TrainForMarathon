@@ -3,7 +3,7 @@ export const GENERATED_CONTENT = [
   {
     "id": "foundations",
     "sectionId": "foundations",
-    "path": "src/md/1-训练基础/README.md",
+    "path": "ebook/src/md/1-训练基础/README.md",
     "contentVersion": 1,
     "title": "训练基础逻辑",
     "nextId": "foundations/logic",
@@ -13,27 +13,27 @@ export const GENERATED_CONTENT = [
   {
     "id": "foundations/logic",
     "sectionId": "foundations",
-    "path": "src/md/1-训练基础/1-训练的底层逻辑和马拉松能力拆分.md",
+    "path": "ebook/src/md/1-训练基础/1-训练的底层逻辑和马拉松能力拆分.md",
     "contentVersion": 1,
     "title": "训练的基本原则和马拉松能力拆分",
     "previousId": "foundations",
     "nextId": "foundations/principles",
-    "markdown": "\n# 训练的基本原则和马拉松能力拆分\n\n## 训练的基本逻辑：渐进超负荷\n\n所有人都知道经过锻炼以后，所锻炼的能力就会变强。但要训练，就必须明白为什么会变强以及如何变强的，我们能看到很多人一味猛练，包括各种文艺作品中都塑造出很多练完后马上变强的印象，然而实际上这种印象是错误的。\n\n- **训练到底是什么**\n  \n实际上锻炼是一个“刺激-适应强化”的过程，是由于外界的刺激使人体对应地发生适应。\n\n人体为了适应外界刺激会被动地强化某些方面的能力，事实上刺激并不只能来源于锻炼，虽然（肌肉电刺激，Electro Muscle Stimulation，简称 EMS）的效果并不够好，但确实可以同样达到刺激肌肉生长的效果。\n\n由于人体对于刺激都会产生超量的适应。训练本质上是破坏相关的机能，然后等待恢复的过程。换句话说，训练的过程人并不会变强，但在恢复过程中由于超量恢复作用的存在，在完成恢复后一般都会获得比原来更强的能力。\n\n所以我们最需要知道的其实是，**变强的过程发生于人体的恢复中**。\n\n因此主动训练，本质上就是要主动地掌控这个“刺激-适应强化”的过程；而科学训练，就是要基于已知的更科学的方式让这个过程更高效。\n\n- **渐进超负荷**\n  \n但是知道了这些以后我们要，怎么做呢？答案是渐进超负荷。\n\n渐进超负荷在健美/健体圈子里可以说是耳熟能详，但跑步的往往只知道“循序渐进”，却很少细化到这一点上。\n\n对于训练和超量恢复的效果，可以参考下图。\n\n![\"超量恢复\"](asset://src/image/exceeding_compensation.jpg)\n\n从图上可以看到，无论是过长的休息还是过短的休息都会让我们达不到预想的效果，因此我们在制定训练计划时就要充分注意训练的节奏，留出恢复的空间。\n\n训练是破坏，恢复才是变强。\n\n## 马拉松需要的能力拆分\n\n通常情况下，一个人接触到训练，最朴素的思维一般都会是“我想在哪个项目中取得成功，就去不断练习这个项目，最终越来越接近目标”。换到马拉松上就是“我先跑到目标配速，然后使用目标配速越跑越长，最后就能跑到需要的成绩”。\n\n但很明显的是这种训练方式并不科学，效率也非常低。虽然它也确实是利用了超量恢复的基本逻辑，但对于马拉松而言，如果每天都用接近目标的距离去训练，只会带来过大的负荷，并且效率不高。\n\n对健美/健身有了解过的一定会知道一个词“X分化”，例如“三分化”、“五分化”等。这个词的意思是将一周的训练分为几个部分，分别针对不同肌群进行锻炼，这样可以更加专注于特定肌群的训练，从而提高训练效率。‌\n\n我们也可以借鉴一下健美/健体练的方法，拆解需要的能力，然后针对性强化提升。\n\n回到跑步上，它可以被拆分成很多方面的能力，包括基础有氧能力、乳酸代谢能力、一定的爆发力甚至是比赛过程中的吸收代谢能力。我们需要做的是针对这些个不同方面的能力，采用最高效的训练来对应地提高，而不是一味地全方位给压力。\n\n跑步的能力拆解和已知的训练方式可以参考下图。\n![跑步能力](asset://src/image/abilities.png)\n",
+    "markdown": "\n# 训练的基本原则和马拉松能力拆分\n\n## 训练的基本逻辑：渐进超负荷\n\n所有人都知道经过锻炼以后，所锻炼的能力就会变强。但要训练，就必须明白为什么会变强以及如何变强的，我们能看到很多人一味猛练，包括各种文艺作品中都塑造出很多练完后马上变强的印象，然而实际上这种印象是错误的。\n\n- **训练到底是什么**\n  \n实际上锻炼是一个“刺激-适应强化”的过程，是由于外界的刺激使人体对应地发生适应。\n\n人体为了适应外界刺激会被动地强化某些方面的能力，事实上刺激并不只能来源于锻炼，虽然（肌肉电刺激，Electro Muscle Stimulation，简称 EMS）的效果并不够好，但确实可以同样达到刺激肌肉生长的效果。\n\n由于人体对于刺激都会产生超量的适应。训练本质上是破坏相关的机能，然后等待恢复的过程。换句话说，训练的过程人并不会变强，但在恢复过程中由于超量恢复作用的存在，在完成恢复后一般都会获得比原来更强的能力。\n\n所以我们最需要知道的其实是，**变强的过程发生于人体的恢复中**。\n\n因此主动训练，本质上就是要主动地掌控这个“刺激-适应强化”的过程；而科学训练，就是要基于已知的更科学的方式让这个过程更高效。\n\n- **渐进超负荷**\n  \n但是知道了这些以后我们要，怎么做呢？答案是渐进超负荷。\n\n渐进超负荷在健美/健体圈子里可以说是耳熟能详，但跑步的往往只知道“循序渐进”，却很少细化到这一点上。\n\n对于训练和超量恢复的效果，可以参考下图。\n\n![\"超量恢复\"](asset://ebook/src/image/exceeding_compensation.jpg)\n\n从图上可以看到，无论是过长的休息还是过短的休息都会让我们达不到预想的效果，因此我们在制定训练计划时就要充分注意训练的节奏，留出恢复的空间。\n\n训练是破坏，恢复才是变强。\n\n## 马拉松需要的能力拆分\n\n通常情况下，一个人接触到训练，最朴素的思维一般都会是“我想在哪个项目中取得成功，就去不断练习这个项目，最终越来越接近目标”。换到马拉松上就是“我先跑到目标配速，然后使用目标配速越跑越长，最后就能跑到需要的成绩”。\n\n但很明显的是这种训练方式并不科学，效率也非常低。虽然它也确实是利用了超量恢复的基本逻辑，但对于马拉松而言，如果每天都用接近目标的距离去训练，只会带来过大的负荷，并且效率不高。\n\n对健美/健身有了解过的一定会知道一个词“X分化”，例如“三分化”、“五分化”等。这个词的意思是将一周的训练分为几个部分，分别针对不同肌群进行锻炼，这样可以更加专注于特定肌群的训练，从而提高训练效率。‌\n\n我们也可以借鉴一下健美/健体练的方法，拆解需要的能力，然后针对性强化提升。\n\n回到跑步上，它可以被拆分成很多方面的能力，包括基础有氧能力、乳酸代谢能力、一定的爆发力甚至是比赛过程中的吸收代谢能力。我们需要做的是针对这些个不同方面的能力，采用最高效的训练来对应地提高，而不是一味地全方位给压力。\n\n跑步的能力拆解和已知的训练方式可以参考下图。\n![跑步能力](asset://ebook/src/image/abilities.png)\n",
     "assets": [
       {
-        "id": "src/image/exceeding_compensation.jpg",
-        "uri": "asset://src/image/exceeding_compensation.jpg"
+        "id": "ebook/src/image/exceeding_compensation.jpg",
+        "uri": "asset://ebook/src/image/exceeding_compensation.jpg"
       },
       {
-        "id": "src/image/abilities.png",
-        "uri": "asset://src/image/abilities.png"
+        "id": "ebook/src/image/abilities.png",
+        "uri": "asset://ebook/src/image/abilities.png"
       }
     ]
   },
   {
     "id": "foundations/principles",
     "sectionId": "foundations",
-    "path": "src/md/1-训练基础/2-训练原则.md",
+    "path": "ebook/src/md/1-训练基础/2-训练原则.md",
     "contentVersion": 1,
     "title": "训练原则",
     "previousId": "foundations/logic",
@@ -44,7 +44,7 @@ export const GENERATED_CONTENT = [
   {
     "id": "foundations/cycle",
     "sectionId": "foundations",
-    "path": "src/md/1-训练基础/3-训练的整体规划和备赛周期.md",
+    "path": "ebook/src/md/1-训练基础/3-训练的整体规划和备赛周期.md",
     "contentVersion": 1,
     "title": "训练的整体规划和备赛周期",
     "previousId": "foundations/principles",
@@ -55,7 +55,7 @@ export const GENERATED_CONTENT = [
   {
     "id": "foundations/goals",
     "sectionId": "foundations",
-    "path": "src/md/1-训练基础/4-赛季目标、赛前自测和目标配速.md",
+    "path": "ebook/src/md/1-训练基础/4-赛季目标、赛前自测和目标配速.md",
     "contentVersion": 1,
     "title": "赛季目标，赛前自测和马拉松配速",
     "previousId": "foundations/cycle",
@@ -66,7 +66,7 @@ export const GENERATED_CONTENT = [
   {
     "id": "foundations/adjustment",
     "sectionId": "foundations",
-    "path": "src/md/1-训练基础/5-训练节奏调整.md",
+    "path": "ebook/src/md/1-训练基础/5-训练节奏调整.md",
     "contentVersion": 1,
     "title": "训练节奏调整",
     "previousId": "foundations/goals",
@@ -77,7 +77,7 @@ export const GENERATED_CONTENT = [
   {
     "id": "training-types",
     "sectionId": "training-types",
-    "path": "src/md/2-训练类型/README.md",
+    "path": "ebook/src/md/2-训练类型/README.md",
     "contentVersion": 1,
     "title": "训练类型选择",
     "previousId": "foundations/adjustment",
@@ -88,7 +88,7 @@ export const GENERATED_CONTENT = [
   {
     "id": "training-types/pace-baseline",
     "sectionId": "training-types",
-    "path": "src/md/2-训练类型/1-训练基准和训练类型划分.md",
+    "path": "ebook/src/md/2-训练类型/1-训练基准和训练类型划分.md",
     "contentVersion": 1,
     "title": "训练基准和训练类型划分",
     "previousId": "training-types",
@@ -99,7 +99,7 @@ export const GENERATED_CONTENT = [
   {
     "id": "training-types/easy",
     "sectionId": "training-types",
-    "path": "src/md/2-训练类型/2-轻松跑.md",
+    "path": "ebook/src/md/2-训练类型/2-轻松跑.md",
     "contentVersion": 1,
     "title": "轻松跑",
     "previousId": "training-types/pace-baseline",
@@ -110,7 +110,7 @@ export const GENERATED_CONTENT = [
   {
     "id": "training-types/marathon",
     "sectionId": "training-types",
-    "path": "src/md/2-训练类型/3-马拉松配速跑.md",
+    "path": "ebook/src/md/2-训练类型/3-马拉松配速跑.md",
     "contentVersion": 1,
     "title": "马拉松配速跑（M跑）",
     "previousId": "training-types/easy",
@@ -121,7 +121,7 @@ export const GENERATED_CONTENT = [
   {
     "id": "training-types/threshold",
     "sectionId": "training-types",
-    "path": "src/md/2-训练类型/4-乳酸阈值跑.md",
+    "path": "ebook/src/md/2-训练类型/4-乳酸阈值跑.md",
     "contentVersion": 1,
     "title": "乳酸阈值跑（T跑）",
     "previousId": "training-types/marathon",
@@ -132,7 +132,7 @@ export const GENERATED_CONTENT = [
   {
     "id": "training-types/interval",
     "sectionId": "training-types",
-    "path": "src/md/2-训练类型/5-最大摄氧量跑.md",
+    "path": "ebook/src/md/2-训练类型/5-最大摄氧量跑.md",
     "contentVersion": 1,
     "title": "最大摄氧量跑（I跑）",
     "previousId": "training-types/threshold",
@@ -143,7 +143,7 @@ export const GENERATED_CONTENT = [
   {
     "id": "training-types/repetition",
     "sectionId": "training-types",
-    "path": "src/md/2-训练类型/6-重复跑.md",
+    "path": "ebook/src/md/2-训练类型/6-重复跑.md",
     "contentVersion": 1,
     "title": "重复跑（R跑）",
     "previousId": "training-types/interval",
@@ -154,7 +154,7 @@ export const GENERATED_CONTENT = [
   {
     "id": "training-types/mixed",
     "sectionId": "training-types",
-    "path": "src/md/2-训练类型/7-混合训练.md",
+    "path": "ebook/src/md/2-训练类型/7-混合训练.md",
     "contentVersion": 1,
     "title": "混合刺激",
     "previousId": "training-types/repetition",
@@ -165,7 +165,7 @@ export const GENERATED_CONTENT = [
   {
     "id": "training-types/race-test",
     "sectionId": "training-types",
-    "path": "src/md/2-训练类型/8-赛前自测.md",
+    "path": "ebook/src/md/2-训练类型/8-赛前自测.md",
     "contentVersion": 1,
     "title": "赛前自测",
     "previousId": "training-types/mixed",
@@ -176,23 +176,23 @@ export const GENERATED_CONTENT = [
   {
     "id": "plans",
     "sectionId": "plans",
-    "path": "src/md/3-课表制定/README.md",
+    "path": "ebook/src/md/3-课表制定/README.md",
     "contentVersion": 1,
     "title": "课表制定内容",
     "previousId": "training-types/race-test",
     "nextId": "plans/20-week",
-    "markdown": "# 课表制定内容\n\n## 课表的制定流程\n\n课表制定和分为三个大流程，分别是制定计划、训练前准备和开始训练三个阶段。\n\n1. 制定计划\n    >1. 首先进行计划制定，先确定基准配速\n    >2. 选择适合自己的训练计划\n    >3. 预估目标周跑量并记录\n    >4. 根据自身情况调整训练日安排\n    >5. 根据预估的目标周跑量，计算日常轻松跑长度\n\n2. 训练前准备\n    >1. 每次开始训练前或开始一个新周期训练前都对最近状态进行简单评估，考虑是否需要调整课表。例如前两天刚经历了一场全力输出的半马或十公里，感觉身体略微疲惫，于是将强度课改为轻松跑；或者前一周因为生活工作原因没有完成强度课，这周需要增加少许负荷；\n    >2. 如果需要微调训练计划，那对计划进行调整，然后执行新的训练计划，否则直接根据预定课表进行训练\n\n3. 训练中的调整\n    >1. 一般情况下，强度课前都建议进行几公里的热身跑，使用E跑强度即可。可以从家里出发跑到训练场地，如果两三公里后感觉没有完全热身开，可以再进行一组快速的渐加速跑，例如从轻松跑开始，每过400-500m提一次速，一直提到接近或达到目标配速。这一部分的量都可以计算到日常堆量的E跑中。\n    >2. 根据热身情况对今天的状态进行评估，选择下一组使用哪一档配速进行训练。训练档位可以参配速基准表。\n    >3. 每一组或每一段距离跑完，都可以对当前状态进行评估，看是否需要调整训练，尤其在刚调整了基准配速或是天气发生剧烈变化时会有比较大的体感差异。\n    >4. 完成训练后可以按自己的情况选择轻松跑几公里冷身，或进行其他的拉伸冷身。如果选择轻松跑冷身，这部分轻松跑也可以计入堆量的轻松跑里。\n    >5. 在使用较高档位训练仍感觉游刃有余时，可以考虑调整基准配速\n\n具体流程可以参考下图：\n![课表制定流程](asset://src/image/plan_make_flowchart.png)\n\n## 课表的使用方式及训练模式\n\n1. 课表会以EMTIR、L、H及“长距离”等形式给出，不限制具体的课表\n2. 关于训练中使用心率还是使用配速进行控制，个人建议是轻松跑参考心率，强度课以配速为准。因为强度课的持续时间多数较短，不可能一开始就达到训练心率。\n3. 关于训练中的强度课占比，所有强度课中，只有处于强度对应配速下的距离才能被算作强度的距离。例如亚索800课表，典型组成是800m的最大摄氧量距离，组间可以完全休息也可以慢跑恢复。假设该次训练的总长度为12km，那么只有8km是达到了最大摄氧量强度的，多余的部分一般情况下全部归于轻松跑跑量。\n\n## 可参考的训练计划\n\n|训练计划|计划特点|选择推荐|备注|\n|:-:|:-:|:-:|:-:|\n|[典型20周训练计划]|训练周期长，曲线平滑|适合所有备赛时间足够长的跑者||\n|[五周循环计划]|周期短，调整灵活|适合比赛相对频繁和不稳定的跑者||\n|待添加|||/|\n\n[典型20周训练计划]:content://plans/20-week\n[五周循环计划]:content://plans/5-week-cycle",
+    "markdown": "# 课表制定内容\n\n## 课表的制定流程\n\n课表制定和分为三个大流程，分别是制定计划、训练前准备和开始训练三个阶段。\n\n1. 制定计划\n    >1. 首先进行计划制定，先确定基准配速\n    >2. 选择适合自己的训练计划\n    >3. 预估目标周跑量并记录\n    >4. 根据自身情况调整训练日安排\n    >5. 根据预估的目标周跑量，计算日常轻松跑长度\n\n2. 训练前准备\n    >1. 每次开始训练前或开始一个新周期训练前都对最近状态进行简单评估，考虑是否需要调整课表。例如前两天刚经历了一场全力输出的半马或十公里，感觉身体略微疲惫，于是将强度课改为轻松跑；或者前一周因为生活工作原因没有完成强度课，这周需要增加少许负荷；\n    >2. 如果需要微调训练计划，那对计划进行调整，然后执行新的训练计划，否则直接根据预定课表进行训练\n\n3. 训练中的调整\n    >1. 一般情况下，强度课前都建议进行几公里的热身跑，使用E跑强度即可。可以从家里出发跑到训练场地，如果两三公里后感觉没有完全热身开，可以再进行一组快速的渐加速跑，例如从轻松跑开始，每过400-500m提一次速，一直提到接近或达到目标配速。这一部分的量都可以计算到日常堆量的E跑中。\n    >2. 根据热身情况对今天的状态进行评估，选择下一组使用哪一档配速进行训练。训练档位可以参配速基准表。\n    >3. 每一组或每一段距离跑完，都可以对当前状态进行评估，看是否需要调整训练，尤其在刚调整了基准配速或是天气发生剧烈变化时会有比较大的体感差异。\n    >4. 完成训练后可以按自己的情况选择轻松跑几公里冷身，或进行其他的拉伸冷身。如果选择轻松跑冷身，这部分轻松跑也可以计入堆量的轻松跑里。\n    >5. 在使用较高档位训练仍感觉游刃有余时，可以考虑调整基准配速\n\n具体流程可以参考下图：\n![课表制定流程](asset://ebook/src/image/plan_make_flowchart.png)\n\n## 课表的使用方式及训练模式\n\n1. 课表会以EMTIR、L、H及“长距离”等形式给出，不限制具体的课表\n2. 关于训练中使用心率还是使用配速进行控制，个人建议是轻松跑参考心率，强度课以配速为准。因为强度课的持续时间多数较短，不可能一开始就达到训练心率。\n3. 关于训练中的强度课占比，所有强度课中，只有处于强度对应配速下的距离才能被算作强度的距离。例如亚索800课表，典型组成是800m的最大摄氧量距离，组间可以完全休息也可以慢跑恢复。假设该次训练的总长度为12km，那么只有8km是达到了最大摄氧量强度的，多余的部分一般情况下全部归于轻松跑跑量。\n\n## 可参考的训练计划\n\n|训练计划|计划特点|选择推荐|备注|\n|:-:|:-:|:-:|:-:|\n|[典型20周训练计划]|训练周期长，曲线平滑|适合所有备赛时间足够长的跑者||\n|[五周循环计划]|周期短，调整灵活|适合比赛相对频繁和不稳定的跑者||\n|待添加|||/|\n\n[典型20周训练计划]:content://plans/20-week\n[五周循环计划]:content://plans/5-week-cycle",
     "assets": [
       {
-        "id": "src/image/plan_make_flowchart.png",
-        "uri": "asset://src/image/plan_make_flowchart.png"
+        "id": "ebook/src/image/plan_make_flowchart.png",
+        "uri": "asset://ebook/src/image/plan_make_flowchart.png"
       }
     ]
   },
   {
     "id": "plans/20-week",
     "sectionId": "plans",
-    "path": "src/md/3-课表制定/1-典型20周训练计划.md",
+    "path": "ebook/src/md/3-课表制定/1-典型20周训练计划.md",
     "contentVersion": 1,
     "title": "典型20周训练计划",
     "previousId": "plans",
@@ -203,7 +203,7 @@ export const GENERATED_CONTENT = [
   {
     "id": "plans/5-week-cycle",
     "sectionId": "plans",
-    "path": "src/md/3-课表制定/2-五周循环训练计划.md",
+    "path": "ebook/src/md/3-课表制定/2-五周循环训练计划.md",
     "contentVersion": 1,
     "title": "五周循环计划",
     "previousId": "plans/20-week",
@@ -214,7 +214,7 @@ export const GENERATED_CONTENT = [
   {
     "id": "details",
     "sectionId": "details",
-    "path": "src/md/4-训练的其他细节/README.md",
+    "path": "ebook/src/md/4-训练的其他细节/README.md",
     "title": "训练的其他细节",
     "contentVersion": 1,
     "previousId": "plans/5-week-cycle",
@@ -225,7 +225,7 @@ export const GENERATED_CONTENT = [
   {
     "id": "details/treadmill",
     "sectionId": "details",
-    "path": "src/md/4-训练的其他细节/1-跑步机训练.md",
+    "path": "ebook/src/md/4-训练的其他细节/1-跑步机训练.md",
     "contentVersion": 1,
     "title": "跑步机训练",
     "previousId": "details",
@@ -236,7 +236,7 @@ export const GENERATED_CONTENT = [
   {
     "id": "details/weather",
     "sectionId": "details",
-    "path": "src/md/4-训练的其他细节/2-关于冬训和夏训.md",
+    "path": "ebook/src/md/4-训练的其他细节/2-关于冬训和夏训.md",
     "contentVersion": 1,
     "title": "关于冬训和夏训",
     "previousId": "details/treadmill",
@@ -247,35 +247,35 @@ export const GENERATED_CONTENT = [
   {
     "id": "details/taper",
     "sectionId": "details",
-    "path": "src/md/4-训练的其他细节/3-赛前减量.md",
+    "path": "ebook/src/md/4-训练的其他细节/3-赛前减量.md",
     "contentVersion": 1,
     "title": "赛前减量",
     "previousId": "details/weather",
     "nextId": "references",
-    "markdown": "﻿\n# 赛前减量\n\n赛前减量对于运动表现的提升是巨大的，但很多跑友忽略了这方面。\n以下截图摘自《ACSM体能训练概论》。\n\n![图1](asset://src/image/taper_1.jpg)\n\n![图2](asset://src/image/taper_2.jpg)\n",
+    "markdown": "﻿\n# 赛前减量\n\n赛前减量对于运动表现的提升是巨大的，但很多跑友忽略了这方面。\n以下截图摘自《ACSM体能训练概论》。\n\n![图1](asset://ebook/src/image/taper_1.jpg)\n\n![图2](asset://ebook/src/image/taper_2.jpg)\n",
     "assets": [
       {
-        "id": "src/image/taper_1.jpg",
-        "uri": "asset://src/image/taper_1.jpg"
+        "id": "ebook/src/image/taper_1.jpg",
+        "uri": "asset://ebook/src/image/taper_1.jpg"
       },
       {
-        "id": "src/image/taper_2.jpg",
-        "uri": "asset://src/image/taper_2.jpg"
+        "id": "ebook/src/image/taper_2.jpg",
+        "uri": "asset://ebook/src/image/taper_2.jpg"
       }
     ]
   },
   {
     "id": "references",
     "sectionId": "references",
-    "path": "src/md/5-引用说明/README.md",
+    "path": "ebook/src/md/5-引用说明/README.md",
     "contentVersion": 1,
     "title": "引用说明和友情链接",
     "previousId": "details/taper",
-    "markdown": "# 引用说明和友情链接\n\n内容大部分基于《丹尼尔斯经典跑步训练法》一书，结合一些运动生理学知识，参考了B站up主[山雨小月]、[仰望尾迹云]等up主的视频及文章，结合与跑友讨论及自己的实践形成。\n\n有时间精力的朋友，也非常推荐去看原书及up主的原始视频及文章。\n\n- 《丹尼尔斯经典跑步训练法》\n![](asset://src/image/Daniels'%20Running%20Formula.png)\n\n\n\n\n[山雨小月]:https://space.bilibili.com/3945971\n[仰望尾迹云]:https://space.bilibili.com/1879203169",
+    "markdown": "# 引用说明和友情链接\n\n内容大部分基于《丹尼尔斯经典跑步训练法》一书，结合一些运动生理学知识，参考了B站up主[山雨小月]、[仰望尾迹云]等up主的视频及文章，结合与跑友讨论及自己的实践形成。\n\n有时间精力的朋友，也非常推荐去看原书及up主的原始视频及文章。\n\n- 《丹尼尔斯经典跑步训练法》\n![](asset://ebook/src/image/Daniels-Running-Formula.png)\n\n\n\n\n[山雨小月]:https://space.bilibili.com/3945971\n[仰望尾迹云]:https://space.bilibili.com/1879203169",
     "assets": [
       {
-        "id": "src/image/Daniels' Running Formula.png",
-        "uri": "asset://src/image/Daniels'%20Running%20Formula.png"
+        "id": "ebook/src/image/Daniels-Running-Formula.png",
+        "uri": "asset://ebook/src/image/Daniels-Running-Formula.png"
       }
     ]
   }

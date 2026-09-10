@@ -1,0 +1,57 @@
+/* 全局基础样式（组件样式由 TDesign 承担，这里只做少量布局覆盖） */
+:root {
+  --td-brand-color: #357a52;
+  --td-brand-color-light: #e8f1ea;
+  --td-brand-color-focus: #d0e4d8;
+}
+
+body {
+  margin: 0;
+  background: #f7f7f5;
+  color: #17211b;
+  font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.app-content {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 16px;
+  min-height: calc(100vh - 64px);
+}
+
+/* 强度色条（与 core INTENSITY_COLORS 一致） */
+.intensity-bar {
+  display: flex;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+.intensity-bar.lg {
+  height: 8px;
+  margin-top: 10px;
+}
+
+/* 页头 */
+.page-hero {
+  margin-bottom: 16px;
+}
+.page-hero .t-typography-title {
+  margin-bottom: 4px;
+}
+
+/* 通用间距 */
+.t-card + .t-card {
+  margin-top: 12px;
+}
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+.muted {
+  color: #607066;
+  font-size: 13px;
+}
