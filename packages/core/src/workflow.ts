@@ -34,6 +34,7 @@ import { listPlanTemplates } from "./plans/registry.js";
 import { selectDayAlternative, swapPlanDays } from "./plans/adjust.js";
 import { buildDayWorkout, workoutPlannedTotals } from "./plans/session-params.js";
 import type { SessionContext } from "./plans/session-params.js";
+import { normalizeWorkout, validateWorkout } from "./dsl/workout.js";
 
 /** 平台存储接口：三个业务集合的增删查（键为逻辑 id） */
 export interface DataStore {
@@ -704,6 +705,66 @@ export async function applyDayAlternative(
   await service.savePlan(updated);
   await syncDayAfterAdjust(service, updated, dayAtOrThrow(findWeekOrThrow(updated, weekNumber), dayIndex));
   return updated;
+}
+
+/**
+ * 写入训练日的结构化课表（校验 → 归一化 → 保存计划 → 同步未结束的计划训练）。
+ * 界面只负责收集内容，周/日定位与计划手术都留在 core，各平台共用同一套规则。
+ */
+export async function setDayWorkout(
+  service: TrainingDataService,
+  plan: PlanInstance & { id: string },
+  dayId: string,
+  workout: Workout,
+): Promise<{ plan: PlanInstance & { id: string }; day: PlanInstanceDay }> {
+  const normalized = assertValidWorkout(workout);
+  const week = plan.weeks.find((entry) => entry.days.some((day) => day.id === dayId));
+  const dayIndex = week?.days.findIndex((day) => day.id === dayId) ?? -1;
+  if (!week || dayIndex < 0) throw new Error("训练日不存在");
+
+  const totals = workoutPlannedTotals(normalized);
+  const day: PlanInstanceDay = {
+    ...week.days[dayIndex],
+    workout: normalized,
+    plannedDistanceKm: totals.distanceKm > 0 ? totals.distanceKm : undefined,
+    plannedDurationMinutes: totals.durationMinutes > 0 ? totals.durationMinutes : undefined,
+  };
+  const updated: PlanInstance & { id: string } = {
+    ...plan,
+    weeks: plan.weeks.map((entry) =>
+      entry.week === week.week
+        ? { ...entry, days: entry.days.map((candidate, index) => (index === dayIndex ? day : candidate)) }
+        : entry,
+    ),
+  };
+  await service.savePlan(updated);
+  await syncDayPlannedWorkout(service, updated, day);
+  return { plan: updated, day };
+}
+
+/**
+ * 只改写某一次训练的计划内容（当天临时追加的训练），不影响计划课表。
+ */
+export async function setSessionPlannedWorkout(
+  service: TrainingDataService,
+  session: TrainingSession,
+  workout: Workout,
+): Promise<TrainingSession> {
+  const normalized = assertValidWorkout(workout);
+  const updated: TrainingSession = {
+    ...session,
+    plannedWorkout: normalized,
+    updatedAt: new Date().toISOString(),
+  };
+  await service.saveSession(updated);
+  return updated;
+}
+
+/** 校验并归一化课表；失败时抛出可直接展示的错误文本 */
+function assertValidWorkout(workout: Workout): Workout {
+  const issues = validateWorkout(workout);
+  if (issues.length > 0) throw new Error(issues.map((issue) => issue.message).join("\n"));
+  return normalizeWorkout(workout);
 }
 
 /** 会话 → 统计记录：done→completed，skipped→skipped；planned 不计入 */

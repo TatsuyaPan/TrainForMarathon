@@ -11,8 +11,11 @@ import {
   isPlanSlotSession,
   removeSession,
   sessionOrigin,
+  setDayWorkout,
+  setSessionPlannedWorkout,
   swapTrainingDays,
 } from "../src/workflow.js";
+import type { Workout } from "../src/domain.js";
 
 class MemoryStore implements DataStore {
   private collections = new Map<string, Map<string, unknown>>();
@@ -63,6 +66,19 @@ function firstRunZone(workout: PlanInstanceDay["workout"]): string | undefined {
 function setup(): { service: TrainingDataService; plan: Plan } {
   const service = new DefaultTrainingDataService(new MemoryStore());
   return { service, plan: createPlan() };
+}
+
+function simpleWorkout(goal: string, minutes = 40): Workout {
+  return {
+    dslVersion: 1,
+    goal,
+    phases: [
+      {
+        role: "main",
+        segments: [{ kind: "run", load: { type: "time", seconds: minutes * 60 }, target: { type: "daniels", zone: "E" } }],
+      },
+    ],
+  };
 }
 
 describe("调整课表：结构化课表跟随训练内容", () => {
@@ -176,5 +192,66 @@ describe("调整课表：结构化课表跟随训练内容", () => {
     expect(firstRunZone(updatedDay.workout)).toBe("E");
     const sessions = await service.listSessions(plan.id, target.id);
     expect(sessions[0].plannedWorkout?.goal).toBe("有氧基础");
+  });
+});
+
+describe("写入课表（core 编排）", () => {
+  it("校验失败时不落库，也不改已保存的课表", async () => {
+    const { service, plan } = setup();
+    await service.savePlan(plan);
+    const target = dayOf(plan, 20, 1);
+    const broken: Workout = { dslVersion: 1, goal: "   ", phases: [{ role: "main", segments: [] }] };
+
+    await expect(setDayWorkout(service, plan, target.id, broken)).rejects.toThrow(/训练目的/);
+    const stored = await service.getPlan(plan.id);
+    expect(dayOf(stored as Plan, 20, 1).workout?.goal).toBe(target.workout?.goal);
+  });
+
+  it("写回当天课表、刷新计划量并同步计划位训练", async () => {
+    const { service, plan } = setup();
+    await service.savePlan(plan);
+    const target = dayOf(plan, 20, 1);
+    const [slot] = await ensureDaySessions(service, plan, target);
+
+    const saved = await setDayWorkout(service, plan, target.id, simpleWorkout("节奏跑", 60));
+
+    expect(saved.day.workout?.goal).toBe("节奏跑");
+    expect(saved.day.plannedDurationMinutes).toBe(60);
+    const stored = await service.getPlan(plan.id);
+    expect(dayOf(stored as Plan, 20, 1).workout?.goal).toBe("节奏跑");
+    const sessions = await service.listSessions(plan.id, target.id);
+    expect(sessions[0].id).toBe(slot.id);
+    expect(sessions[0].plannedWorkout?.goal).toBe("节奏跑");
+  });
+
+  it("允许跑休日补上课表，计划位训练在下次访问时生成", async () => {
+    const { service, plan } = setup();
+    await service.savePlan(plan);
+    const rest = dayOf(plan, 20, 0);
+    expect(rest.workout).toBeUndefined();
+
+    const saved = await setDayWorkout(service, plan, rest.id, simpleWorkout("轻松跑", 40));
+
+    expect(await service.listSessions(plan.id, rest.id)).toHaveLength(0);
+    const created = await ensureDaySessions(service, saved.plan, saved.day);
+    expect(created).toHaveLength(1);
+    expect(created[0].plannedWorkout?.goal).toBe("轻松跑");
+  });
+
+  it("只改写指定的一次训练，不动计划课表", async () => {
+    const { service, plan } = setup();
+    await service.savePlan(plan);
+    const target = dayOf(plan, 20, 1);
+    const [slot] = await ensureDaySessions(service, plan, target);
+    const extra = await addExtraSession(service, plan.id, target.id, { label: "晚间放松跑" });
+
+    const updated = await setSessionPlannedWorkout(service, extra, simpleWorkout("恢复慢跑", 25));
+
+    expect(updated.plannedWorkout?.goal).toBe("恢复慢跑");
+    const stored = await service.getPlan(plan.id);
+    expect(dayOf(stored as Plan, 20, 1).workout?.goal).toBe(target.workout?.goal);
+    const sessions = await service.listSessions(plan.id, target.id);
+    expect(sessions.find((entry) => entry.id === slot.id)?.plannedWorkout?.goal).toBe(slot.plannedWorkout?.goal);
+    expect(sessions.find((entry) => entry.id === extra.id)?.plannedWorkout?.goal).toBe("恢复慢跑");
   });
 });
