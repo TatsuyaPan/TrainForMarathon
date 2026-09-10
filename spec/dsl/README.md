@@ -23,6 +23,32 @@ spec/dsl/
 5. **平台可自带解析器。** 平台可以只依赖 core 的默认实现，也可以自行实现或替换某个版本的解析器，只要满足冻结规范中的无损往返要求。
 6. **规范里的示例是可执行的。** 每份规范「合法示例」一节中的每个 ```` ```text ```` 代码块都会被一致性测试解析并往返校验，因此示例本身就是实现必须满足的验收用例。
 
+## 发布与分发
+
+冻结规范与版本解析器一起交付，避免使用方拿到解析器却读不到该版本的规范：
+
+- 规范的事实来源只有本目录（仓库根 `spec/dsl/`）；包内 `packages/core/spec/dsl/` 是构建生成的副本，**不得手工修改**（该目录被 `.gitignore` 忽略）；
+- 构建脚本 `packages/core/scripts/sync-spec.mjs` 会把本目录逐字节复制到包内同名路径，
+  因此包内相对路径与仓库相对路径一致：`import { parseWorkoutDslV1 } from "@train-for-marathon/core/dsl/v1"` 与
+  `@train-for-marathon/core/spec/dsl/v1/workout-dsl-v1.md` 是同一版本的解析器与规范；
+- 文件名约定：版本目录 `v<版本>/` 中的主规范文件固定为 `workout-dsl-v<版本>.md`；目录内可以有补充文件，但主规范文件必须存在；
+- 使用方可以用代码里的路径常量定位包内规范（相对包根，由使用方按自己的文件系统或打包方式解析）：
+
+```ts
+import {
+  WORKOUT_DSL_SPEC_DIR,
+  workoutDslSpecVersionDir,
+  workoutDslSpecVersionFile,
+} from "@train-for-marathon/core";
+
+WORKOUT_DSL_SPEC_DIR;           // "spec/dsl"
+workoutDslSpecVersionDir(1);    // "spec/dsl/v1"
+workoutDslSpecVersionFile(1);   // "spec/dsl/v1/workout-dsl-v1.md"
+```
+
+- `npm run check:spec`（在 `packages/core` 下执行）检查包产物里的规范是否与仓库一致；
+  `packages/core/test/dsl-spec-distribution.test.ts` 在测试阶段守住「规范目录 ↔ 版本注册表」「复制无损」「发布包带规范」三条约束。
+
 ## 版本索引
 
 | 版本 | 冻结规范 | 状态 | 解析器 / 序列化器 | 一致性测试 |

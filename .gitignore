@@ -7,6 +7,8 @@
 ## https://docs.npmjs.com/misc/faq#should-i-check-my-node_modules-folder-into-git
 node_modules
 dist
+# 包内冻结规范副本：构建时由 packages/core/scripts/sync-spec.mjs 从仓库根 spec/dsl/ 生成
+packages/core/spec
 .worktrees/
 
 # Book build output

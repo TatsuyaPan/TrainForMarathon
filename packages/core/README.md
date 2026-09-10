@@ -15,7 +15,7 @@ TrainForMarathon 的平台无关领域核心。运行时代码不依赖微信、
 | `src/dsl/` | Workout DSL：`v1.ts` 解析/序列化、`registry.ts` 版本分发、编辑与展示 |
 | `src/plans/` | 课表模板（20 周 / 五周循环）、实例化、校验与单日调整 |
 | `src/fitness.ts` | 能力推算（VDOT、6 秒规则）与档位文案 |
-| `src/library.ts`、`src/content/` | 课程库与内置课程正文 |
+| `src/library.ts`、`src/content/` | 课程库与内置课程正文（含按主训练档位推断分类的 `inferLibraryCategory`） |
 
 ## 训练会话生命周期
 
@@ -62,6 +62,10 @@ import { parseWorkoutDslV1 } from "@train-for-marathon/core/dsl/v1";
 
 最小合法课程是 `GOAL:有氧基础` 加上一段 `MS:40min@E`：`GOAL` 必填，`TITLE`、`NOTE` 可留空。未声明版本时使用平台当前最新版；显式声明了不支持的版本会直接报错，不猜测、不降级。
 
+冻结规范随解析器一起发布：构建会把仓库根目录的 `spec/dsl/` 逐字节复制到包内同名的 `spec/dsl/`（包内路径与仓库路径一致），使用方可以按
+`workoutDslSpecVersionFile(1)`（`spec/dsl/v1/workout-dsl-v1.md`）定位包内规范，也可以直接引用
+`@train-for-marathon/core/spec/dsl/v1/workout-dsl-v1.md`。
+
 ## 使用
 
 ```ts
@@ -94,5 +98,7 @@ npm run typecheck
 npm run build     # 生成 dist；web 依赖该产物
 ```
 
-构建会根据 `content-manifest.json` 将现有 Markdown 生成到运行时包中。`src/content/generated.ts` 是生成文件，不应手工修改。
+构建会先清空 `dist`（避免已删除模块的旧编译文件被一起发布），再根据 `content-manifest.json` 将现有 Markdown 生成到运行时包中，
+最后复制冻结规范。`src/content/generated.ts` 是生成文件，不应手工修改。
 新增 DSL 版本时需要同步的步骤见 `spec/dsl/README.md`；`packages/core/test/dsl-spec-conformance.test.ts` 会强制「冻结规范 ↔ 版本解析器」一一对应。
+`npm run check:spec` 可以单独检查产物里的规范有没有落后于仓库。

@@ -101,3 +101,23 @@ export function serializeWorkout(workout: Workout, options: SerializeWorkoutOpti
   }
   return serializer(workout, options);
 }
+
+/**
+ * 冻结规范在包内的位置（相对包根）。
+ *
+ * 规范的事实来源是仓库根目录的 `spec/dsl/`，构建时由 `scripts/sync-spec.mjs` 逐字节复制到
+ * 包内同名的 `spec/dsl/`，因此包内相对路径与仓库相对路径一致。这样「按版本的解析器」和
+ * 「该版本的冻结文本」一起发布：只依赖 `@train-for-marathon/core/dsl/v1` 的平台，
+ * 也能读到同一版本的规范。
+ */
+export const WORKOUT_DSL_SPEC_DIR = "spec/dsl";
+
+/** 指定版本的冻结规范目录（相对包根）。 */
+export function workoutDslSpecVersionDir(version: number): string {
+  return `${WORKOUT_DSL_SPEC_DIR}/v${version}`;
+}
+
+/** 指定版本的冻结规范文件（相对包根）；文件名约定见 spec/dsl/README.md。 */
+export function workoutDslSpecVersionFile(version: number): string {
+  return `${workoutDslSpecVersionDir(version)}/workout-dsl-v${version}.md`;
+}
