@@ -57,7 +57,7 @@ function compact(value) {
 }
 
 function clone(value) {
-  return value === undefined ? undefined : structuredClone(value);
+  return value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 }
 
 function sameWorkout(left, right) {

@@ -9,6 +9,7 @@ import Paces from "./views/Paces.vue";
 import Fitness from "./views/Fitness.vue";
 import Settings from "./views/Settings.vue";
 import EditWorkout from "./views/EditWorkout.vue";
+import SessionRecord from "./views/SessionRecord.vue";
 
 export const router = createRouter({
   history: createWebHashHistory(),
@@ -16,6 +17,11 @@ export const router = createRouter({
     { path: "/training", component: TrainingCalendar },
     { path: "/training/week", component: TrainingWeek, props: (route) => ({ date: route.query.date }) },
     { path: "/training/day", component: TrainingDay, props: (route) => ({ date: route.query.date }) },
+    {
+      path: "/training/session",
+      component: SessionRecord,
+      props: (route) => ({ planId: route.query.plan, sessionId: route.query.session, date: route.query.date }),
+    },
     { path: "/courses", component: Courses },
     { path: "/course/:id", component: Course, props: true },
     { path: "/library", component: Library },
