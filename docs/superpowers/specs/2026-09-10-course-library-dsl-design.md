@@ -70,7 +70,10 @@
 
 ```ts
 export interface Workout {
+  dslVersion: number;
+  title?: string;
   goal: string;
+  note?: string;
   phases: WorkoutPhase[];
 }
 
@@ -82,7 +85,10 @@ export interface WorkoutPhase {
 
 约束：
 
-- `goal` 必填；
+- `dslVersion` 在 AST 中始终存在；DSL 未声明版本时由解析器填入所选解析器版本；
+- `title` 可省略或为空，空白标题规范化为 `undefined`；
+- `goal` 必填且去除首尾空白后不能为空；
+- `note` 可省略或为空，空白备注规范化为 `undefined`；
 - `main` 阶段必须存在且只能存在一次；
 - `warmup` 和 `cooldown` 各自最多存在一次；
 - 阶段顺序固定为 `warmup → main → cooldown`；
@@ -196,9 +202,12 @@ L 是长距离课程形态，使用长时间或长距离的 E 跑表达，不作
 ### 6.1 标准产生式
 
 ```ebnf
-workout       = goal, newline, phase, { newline, phase } ;
+workout       = version?, title?, goal, note?, phase, { newline, phase } ;
 
-goal          = "[", goal-text, "]" ;
+version       = "WORKOUT/", positive-integer, newline ;
+title         = "TITLE:", line-text?, newline ;
+goal          = "GOAL:", non-empty-line-text, newline ;
+note          = "NOTE:", line-text?, newline ;
 
 phase         = phase-tag, ":", sequence ;
 phase-tag     = "WU" | "MS" | "CD" ;
@@ -248,15 +257,48 @@ repeat-note    = note-attribute ;
 ### 6.2 词法规则
 
 - 关键字区分大小写；
-- 标准关键字使用 ASCII：`WU`、`MS`、`CD`、`x`、`jog`、`rest`；
+- 标准关键字使用 ASCII：`WORKOUT`、`TITLE`、`GOAL`、`NOTE`、`WU`、`MS`、`CD`、`x`、`jog`、`rest`；
 - UI 可以显示中文和乘号 `×`，但导出的 DSL 使用标准关键字；
 - 标记之间允许空白，但标准序列化不输出多余空白；
-- `goal-text` 不能为空，不能包含 `]` 或换行；
+- `TITLE` 和 `NOTE` 可省略；存在但值为空时规范化为未设置；
+- `GOAL` 必须存在，值去除首尾空白后不能为空；
+- `TITLE`、`GOAL` 和 `NOTE` 的值是该行第一个冒号后的全部文本，去除首尾空白且不能跨行；
 - `quoted-text` 使用 JSON 字符串转义规则；
 - 时间和距离解析后必须能够无损转换为整数秒或整数米；
 - 不接受 `10min E`、`Run 10min@E`、逗号恢复语法等替代写法。
 
-### 6.3 属性限制
+### 6.3 版本选择
+
+版本声明是可选的：
+
+```text
+WORKOUT/1
+```
+
+- 声明版本时，平台应选择对应解析器；不支持该版本时抛出明确的“版本不支持”错误，不得猜测或降级；
+- 未声明版本时，默认使用平台当前支持的最新版解析器；若解析失败，直接返回该解析器的语法错误，不尝试其他版本；
+- 平台可以选择只提供最新版解析器，也可以维护解析器注册表、固定某个默认版本或直接调用指定版本解析器；
+- core 暴露 `CURRENT_WORKOUT_DSL_VERSION`、版本识别函数和版本明确的解析入口，平台策略不写死在 DSL 文本层；
+- 标准导出默认写入 `WORKOUT/<version>` 以便长期交换；紧凑导出可以省略版本，但其含义始终是“按接收平台的当前最新版解析”。
+
+建议 API：
+
+```ts
+export const CURRENT_WORKOUT_DSL_VERSION = 1;
+
+export function detectWorkoutDslVersion(text: string): number | undefined;
+
+export function parseWorkoutDsl(
+  text: string,
+  options?: { defaultVersion?: number },
+): Workout;
+
+export function parseWorkoutDslV1(text: string): Workout;
+```
+
+`parseWorkoutDsl` 优先使用文本中的显式版本，否则使用 `options.defaultVersion`，再否则使用 `CURRENT_WORKOUT_DSL_VERSION`。平台也可以绕过统一入口，直接调用具体版本解析器。
+
+### 6.4 属性限制
 
 - `RunStep` 可使用辅助 RPE、坡度和备注；
 - `RecoveryStep` 只可使用备注；
@@ -265,7 +307,7 @@ repeat-note    = note-attribute ;
 - 被动休息只接受时间负荷；
 - 不允许 `2min@rest@inc3` 等无意义组合。
 
-### 6.4 数值约束
+### 6.5 数值约束
 
 - 时间、距离和循环次数必须大于零；
 - 循环次数必须是整数；
@@ -277,7 +319,7 @@ repeat-note    = note-attribute ;
 - 每个循环至少包含一个分部；
 - 循环最大嵌套深度为 10。
 
-### 6.5 循环语义
+### 6.6 循环语义
 
 循环严格重复括号内的完整序列：
 
@@ -293,19 +335,19 @@ repeat-note    = note-attribute ;
 
 这保证 DSL、AST、课程预览和实际执行完全一致。
 
-### 6.6 标准示例
+### 6.7 合法精简示例（省略可选版本）
 
-轻松跑：
+最小合法课程（轻松跑）：
 
 ```text
-[有氧基础]
+GOAL:有氧基础
 MS:45min@E
 ```
 
 阈值巡航间歇：
 
 ```text
-[乳酸阈能力]
+GOAL:乳酸阈能力
 WU:15min@E
 MS:6x(8min@T@RPE8+90s@jog)
 CD:10min@E
@@ -314,7 +356,7 @@ CD:10min@E
 亚索 800：
 
 ```text
-[最大摄氧量刺激]
+GOAL:最大摄氧量刺激
 WU:2km@E
 MS:10x(800m@I+3min@jog)
 CD:2km@E
@@ -323,7 +365,7 @@ CD:2km@E
 完全休息：
 
 ```text
-[速度与跑步经济性]
+GOAL:速度与跑步经济性
 WU:15min@E
 MS:8x(400m@R@RPE9+3min@rest)
 CD:10min@E
@@ -332,28 +374,28 @@ CD:10min@E
 最大心率百分比：
 
 ```text
-[有氧基础]
+GOAL:有氧基础
 MS:45min@HR65-78%max
 ```
 
 储备心率百分比：
 
 ```text
-[轻松恢复]
+GOAL:轻松恢复
 MS:40min@HR60-70%hrr
 ```
 
 绝对心率：
 
 ```text
-[稳定有氧]
+GOAL:稳定有氧
 MS:40min@HR145-160bpm
 ```
 
 自定义配速：
 
 ```text
-[马拉松专项适应]
+GOAL:马拉松专项适应
 WU:3km@E
 MS:12km@P4:45-5:00/km@RPE7
 CD:2km@E
@@ -362,7 +404,7 @@ CD:2km@E
 RPE 主目标：
 
 ```text
-[高温环境阈值体感]
+GOAL:高温环境阈值体感
 WU:15min@RPE3
 MS:3x(10min@RPE7+2min@jog)
 CD:10min@RPE2
@@ -371,7 +413,7 @@ CD:10min@RPE2
 嵌套循环：
 
 ```text
-[I与T混合刺激]
+GOAL:I与T混合刺激
 WU:15min@E
 MS:2x(3x(3min@I+2min@jog)+5min@T+2min@jog)
 CD:10min@E
@@ -380,7 +422,7 @@ CD:10min@E
 短距离神经激活：
 
 ```text
-[神经激活与跑姿]
+GOAL:神经激活与跑姿
 WU:15min@E
 MS:6x(100m@ST+100m@jog)
 CD:10min@E
@@ -390,6 +432,9 @@ CD:10min@E
 
 解析器直接生成规范化 AST：
 
+- 显式版本写入 `dslVersion`；缺少版本时写入实际使用的解析器版本；
+- 空白 `TITLE` 和 `NOTE` 规范化为未设置；
+- `GOAL` 去除首尾空白并校验非空；
 - 所有时间转换为整数秒；
 - 所有距离转换为整数米；
 - 阶段按固定顺序保存；
@@ -398,7 +443,7 @@ CD:10min@E
 - 不保留输入空白和原始单位；
 - 不接受或保存旧字段。
 
-序列化器只接受通过 `validateWorkout` 的 AST，并输出唯一标准文本。以下差异不属于语义差异：
+序列化器只接受通过 `validateWorkout` 的 AST。在是否输出版本号的选项确定后，序列化结果唯一；默认包含版本，紧凑模式允许省略。以下差异不属于语义差异：
 
 - `1.5min` 解析后导出为 `90s`；
 - 输入中的多余空白被移除；
@@ -445,10 +490,8 @@ AST 是课程内容的唯一事实来源，不同时持久化可能过期的 `ds
 export interface LibraryCourse {
   id: string;
   origin: "builtin" | "custom";
-  name: string;
   category: "E" | "M" | "T" | "I" | "R" | "ST" | "mixed";
   tags: Array<"E" | "M" | "T" | "I" | "R" | "ST">;
-  description?: string;
   weeklyKmHint?: string;
   source: string;
   workout: Workout;
@@ -475,7 +518,7 @@ core 提供：
 Web 自定义课程使用新的 localStorage key，旧 key 不读取：
 
 ```text
-tfm:course-library:v3
+tfm:course-library:v1
 ```
 
 存储仅包含 `origin: "custom"` 的 `LibraryCourse`。写入前必须经过 core 校验。读取失败、JSON 损坏或结构校验失败时，不让页面崩溃；界面显示存储错误并允许用户清理无效数据。
@@ -484,7 +527,7 @@ tfm:course-library:v3
 
 - 新建：生成新 ID、`createdAt` 和 `updatedAt`；
 - 编辑：保留 ID 和 `createdAt`，更新 `updatedAt`；
-- 复制：深拷贝 Workout，生成新 ID，名称默认增加“（副本）”；
+- 复制：深拷贝 Workout 并生成新 ID；标题存在时默认增加“（副本）”，标题为空时保持为空；
 - 删除：必须二次确认；
 - 列表变更后立即更新响应式状态。
 
@@ -500,7 +543,7 @@ tfm:course-library:v3
 4. 解析失败时在输入框下显示错误位置和原因；
 5. 解析成功后生成未持久化草稿；
 6. 进入统一课程编辑页；
-7. 用户补充课程名称、分类、描述和适用跑量；
+7. 用户按需补充标题、课程备注、分类和适用跑量；`GOAL` 已由 DSL 提供且必须非空；
 8. 用户点击保存后才写入 localStorage。
 
 关闭导入窗口、取消编辑或解析失败都不能产生课程记录。
@@ -518,8 +561,8 @@ tfm:course-library:v3
 
 课程卡片按以下顺序展示：
 
-1. 名称、分类、来源和适用跑量；
-2. 训练目的和课程描述；
+1. 展示标题、分类、来源和适用跑量；标题为空时使用 `GOAL` 作为展示标题；
+2. 训练目的和可选课程备注；
 3. 已知总距离、已知总时间、主训练容量和循环数量；
 4. 彩色训练结构预览条；
 5. 默认折叠的递归步骤树；
@@ -595,7 +638,7 @@ tfm:course-library:v3
 ### 14.1 顶部
 
 - 返回课程库；
-- 当前课程名称或“新建课程”；
+- 当前展示标题或“新建课程”；展示标题取 `title || goal || "新建课程"`；
 - 未保存状态；
 - 保存按钮。
 
@@ -605,10 +648,10 @@ tfm:course-library:v3
 
 参考 COROS，集中编辑：
 
-- 课程名称；
+- 可选课程标题；
 - 分类；
-- 训练目的；
-- 课程描述；
+- 必填训练目的；
+- 可选课程备注；
 - 适用周跑量提示。
 
 ### 14.3 结构区
@@ -646,13 +689,13 @@ tfm:course-library:v3
 
 默认草稿：
 
-- 空名称；
+- 空标题；
 - 空训练目的；
 - 分类 E；
 - 一个 `main` 阶段；
 - `main` 中包含一个 30 分钟 E 跑步骤。
 
-默认值用于降低首次使用成本，但保存前仍需用户确认名称和目的。
+默认值用于降低首次使用成本；标题可以保持为空，保存前必须填写训练目的。
 
 ### 15.2 编辑
 
@@ -663,13 +706,13 @@ tfm:course-library:v3
 - 复制内置课程或自定义课程都会生成出新的自定义草稿；
 - 深拷贝全部 Workout 结构；
 - 新 ID 只在保存时生成；
-- 默认名称追加“（副本）”；
+- 原标题存在时默认追加“（副本）”，原标题为空时保持为空；
 - 取消编辑不产生记录。
 
 ### 15.4 删除
 
 - 仅自定义课程可删除；
-- 确认信息必须显示课程名称；
+- 确认信息必须显示 `title || goal`；
 - 删除完成后列表立即刷新；
 - 不影响已经引用该课程生成的训练计划或 TrainingSession，因为训练计划保存的是 Workout 快照而不是课程 ID 的动态引用。
 
@@ -710,6 +753,12 @@ tfm:course-library:v3
 
 ### 17.1 core 单元测试
 
+- 缺少版本时使用当前最新版解析器；
+- 显式版本选择对应解析器；
+- 不支持的显式版本返回版本错误且不回退；
+- 平台指定默认版本覆盖当前最新版；
+- `TITLE` 和 `NOTE` 缺失、为空或只有空白时规范化为未设置；
+- `GOAL` 缺失、为空或只有空白时拒绝；
 - 五种用户步骤的解析与序列化；
 - WU/MS/CD 阶段顺序和唯一性；
 - 时间、距离和配速单位规范化；
