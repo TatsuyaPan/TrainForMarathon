@@ -467,15 +467,42 @@ export async function addExtraSession(
 
 /** 会话 → 统计记录：done→completed，skipped→skipped；planned 不计入 */
 export function sessionsToProgress(sessions: readonly TrainingSession[]): ProgressRecord[] {
-  return sessions
-    .filter((session) => session.status !== "planned")
-    .map((session) => ({
-      dayId: session.dayId,
-      status: session.status === "done" ? ("completed" as ProgressStatus) : ("skipped" as ProgressStatus),
-      actualDistanceKm: session.actualDistanceKm,
-      actualDurationMinutes: session.actualDurationMinutes,
-      updatedAt: session.finishedAt ?? session.updatedAt,
-    }));
+  const byDay = new Map<string, TrainingSession[]>();
+  for (const session of sessions) {
+    const group = byDay.get(session.dayId) ?? [];
+    group.push(session);
+    byDay.set(session.dayId, group);
+  }
+
+  return [...byDay.entries()].flatMap(([dayId, group]) => {
+    if (group.every((session) => session.status === "planned")) return [];
+    const completed = group.filter((session) => session.status === "done");
+    return [{
+      dayId,
+      status: aggregateSessionStatus(group),
+      actualDistanceKm: sumOptional(completed.map((session) => session.actualDistanceKm)),
+      actualDurationMinutes: sumOptional(completed.map((session) => session.actualDurationMinutes)),
+      updatedAt: latestSessionTimestamp(group),
+    }];
+  });
+}
+
+function aggregateSessionStatus(sessions: readonly TrainingSession[]): ProgressStatus {
+  if (sessions.every((session) => session.status === "done")) return "completed";
+  if (sessions.every((session) => session.status === "skipped")) return "skipped";
+  return "partial";
+}
+
+function sumOptional(values: readonly (number | undefined)[]): number | undefined {
+  const present = values.filter((value): value is number => value !== undefined);
+  return present.length > 0 ? present.reduce((sum, value) => sum + value, 0) : undefined;
+}
+
+function latestSessionTimestamp(sessions: readonly TrainingSession[]): string {
+  return sessions.reduce((latest, session) => {
+    const timestamp = session.finishedAt ?? session.updatedAt;
+    return timestamp > latest ? timestamp : latest;
+  }, "");
 }
 
 export interface FormattedTrainingDay {

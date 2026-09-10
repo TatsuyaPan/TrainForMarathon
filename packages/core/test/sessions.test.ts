@@ -10,6 +10,7 @@ import {
   skipSession,
 } from "../src/workflow.js";
 import type { DataStore } from "../src/workflow.js";
+import type { TrainingSession } from "../src/domain.js";
 
 class MemoryStore implements DataStore {
   private collections = new Map<string, Map<string, unknown>>();
@@ -33,6 +34,61 @@ class MemoryStore implements DataStore {
 const RACE_DATE = "2026-11-15";
 
 describe("training session lifecycle", () => {
+  it("aggregates multiple sessions into one daily progress record", () => {
+    const session = (
+      id: string,
+      status: TrainingSession["status"],
+      overrides: Partial<TrainingSession> = {},
+    ): TrainingSession => ({
+      id,
+      planId: "plan-1",
+      dayId: "day-1",
+      seq: Number(id.at(-1)),
+      label: id,
+      status,
+      createdAt: "2026-09-10T08:00:00.000Z",
+      updatedAt: "2026-09-10T08:00:00.000Z",
+      ...overrides,
+    });
+
+    const completed = sessionsToProgress([
+      session("done-0", "done", {
+        actualDistanceKm: 10,
+        actualDurationMinutes: 50,
+        finishedAt: "2026-09-10T09:00:00.000Z",
+      }),
+      session("done-1", "done", {
+        actualDistanceKm: 5,
+        actualDurationMinutes: 28,
+        finishedAt: "2026-09-10T18:00:00.000Z",
+      }),
+    ]);
+    expect(completed).toEqual([{
+      dayId: "day-1",
+      status: "completed",
+      actualDistanceKm: 15,
+      actualDurationMinutes: 78,
+      updatedAt: "2026-09-10T18:00:00.000Z",
+    }]);
+
+    expect(sessionsToProgress([
+      session("skip-0", "skipped"),
+      session("skip-1", "skipped"),
+    ])[0].status).toBe("skipped");
+
+    expect(sessionsToProgress([
+      session("done-0", "done", { actualDistanceKm: 8 }),
+      session("skip-1", "skipped"),
+    ])[0]).toMatchObject({ status: "partial", actualDistanceKm: 8 });
+
+    expect(sessionsToProgress([
+      session("done-0", "done"),
+      session("plan-1", "planned", { updatedAt: "2026-09-10T20:00:00.000Z" }),
+    ])[0]).toMatchObject({ status: "partial", updatedAt: "2026-09-10T20:00:00.000Z" });
+
+    expect(sessionsToProgress([session("plan-0", "planned")])).toEqual([]);
+  });
+
   it("lazily generates one planned session per training day (rest days excluded)", async () => {
     const service = new DefaultTrainingDataService(new MemoryStore());
     const athlete = (await service.getAthleteProfile()) ?? {
@@ -108,9 +164,8 @@ describe("training session lifecycle", () => {
     await skipSession(service, planned);
     await completeSession(service, extra, { actualDistanceKm: 5, log: "补跑" });
     const records = sessionsToProgress(await service.listSessions(plan.id, day.id));
-    expect(records).toHaveLength(2);
-    // 同一天多会话：状态集合包含完成与跳过
-    expect(records.map((r) => r.status).sort()).toEqual(["completed", "skipped"]);
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({ status: "partial", actualDistanceKm: 5 });
   });
 
   it("home summary merges sessions (priority) with legacy progress", async () => {
