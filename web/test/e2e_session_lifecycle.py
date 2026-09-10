@@ -116,6 +116,22 @@ with sync_playwright() as playwright:
     page.wait_for_load_state("networkidle")
     expect(page.locator('.period-cell.partial .cal-status')).to_have_text("部分完成")
 
+    # 训练日课表编辑器：复用课程库结构编辑器，可从课程库选课并保存
+    page.goto(f"{BASE_URL}/#/edit?plan=plan-e2e&day=day-e2e")
+    page.wait_for_load_state("networkidle")
+    expect(page.get_by_test_id("day-goal")).to_have_value("有氧耐力")
+    expect(page.get_by_test_id("workout-editor")).to_be_visible()
+    page.get_by_test_id("toggle-library").click()
+    page.get_by_test_id("library-entry-t-8min-x6").get_by_role("button", name="使用此课表").click()
+    expect(page.locator('[data-testid="editor-repeat"]').first).to_be_visible()
+    page.get_by_test_id("save-day").click()
+    expect(page).to_have_url(f"{BASE_URL}/#/training/day?date={DATE}")
+    saved_dsl = page.evaluate(
+        "JSON.parse(localStorage.getItem('tfm:plans:plan-e2e')).weeks[0].days[0].workout.phases"
+        ".find((phase) => phase.role === 'main').segments[0].kind"
+    )
+    assert saved_dsl == "repeat", saved_dsl
+
     session_keys = page.evaluate("Object.keys(localStorage).filter((key) => key.startsWith('tfm:sessions:'))")
     assert len(session_keys) == 2, session_keys
     assert not console_errors, console_errors
