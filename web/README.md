@@ -67,6 +67,7 @@ npm run preview          # 监听 4173，保持运行
 python test/e2e_first_run.py          # 首次配置 → 生成课表 → 记录 → 文章
 python test/e2e_session_lifecycle.py  # 一天多训练、完成/跳过、课表编辑与计划同步
 python test/e2e_course_library.py     # 课程库展示、DSL 导入、新建/编辑/复制/删除
+python test/e2e_dsl_roundtrip.py      # 导出→重新导入结构与展示一致；十层嵌套与长课程边界
 python test/e2e_settings_fitness.py   # 能力保存 → 重建课表 → 重置全部数据
 python test/e2e_plan_adjust.py        # 调整课表：与本周另一天互换 / 采用备选
 python test/e2e_mobile_layout.py      # 390px 手机宽度下逐页检查横向溢出
