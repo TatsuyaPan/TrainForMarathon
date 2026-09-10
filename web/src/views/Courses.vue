@@ -14,7 +14,12 @@
         :key="item.id"
         class="doc-link"
         :bordered="true"
+        role="button"
+        tabindex="0"
+        :data-testid="`doc-link-${item.id}`"
         @click="$router.push(`/course/${encodeURIComponent(item.id)}`)"
+        @keydown.enter.prevent="$router.push(`/course/${encodeURIComponent(item.id)}`)"
+        @keydown.space.prevent="$router.push(`/course/${encodeURIComponent(item.id)}`)"
       >
         <div class="doc-row">
           <span>{{ item.title }}</span>
@@ -54,6 +59,7 @@ onMounted(() => {
 <style scoped>
 .section-title { margin: 18px 0 8px; }
 .doc-link { cursor: pointer; margin-bottom: 10px; }
+.doc-link:focus-visible { outline: 2px solid var(--td-brand-color); outline-offset: 2px; }
 .doc-row { display: flex; justify-content: space-between; align-items: center; }
 .arrow { color: #b3bdb7; font-size: 16px; }
 </style>

@@ -16,7 +16,7 @@
       </t-typography-title>
       <p class="muted">
         {{ templateName }} · 共 {{ weekRows.length }} 周 · 比赛日 {{ plan.raceDate }}
-        <t-button v-if="currentWeek" size="small" variant="text" @click="openWeek(currentWeek.week)">
+        <t-button v-if="currentWeek" data-testid="view-current-week" size="small" variant="text" @click="openWeek(currentWeek.week)">
           查看本周
         </t-button>
       </p>
@@ -47,10 +47,16 @@
         class="period-row"
         :class="{ 'row-current': row.isCurrent }"
       >
-        <div class="week-col" @click="openWeek(row)">
+        <button
+          type="button"
+          class="week-col"
+          :data-testid="`week-col-${row.week}`"
+          :aria-label="`第 ${row.week} 周 ${row.phase}：查看本周`"
+          @click="openWeek(row)"
+        >
           <div class="week-no">第 {{ row.week }} 周</div>
           <div class="week-phase muted">{{ row.phase }}</div>
-        </div>
+        </button>
         <router-link
           v-for="cell in row.cells"
           :key="cell.date"
@@ -171,8 +177,15 @@ onMounted(async () => {
   flex-direction: column;
   justify-content: center;
   gap: 2px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
 }
 .week-col:hover { background: var(--td-brand-color-light); }
+.week-col:focus-visible { outline: 2px solid var(--td-brand-color); outline-offset: 2px; }
 .week-no { font-size: 13px; font-weight: 700; }
 .week-phase { font-size: 11px; }
 .row-current .week-col { background: var(--td-brand-color-light); }

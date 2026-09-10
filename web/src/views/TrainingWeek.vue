@@ -12,7 +12,19 @@
       </p>
     </div>
 
-    <t-card v-for="day in days" :key="day.id" class="week-day" :bordered="true" @click="$router.push({ path: '/training/day', query: { date: day.date } })">
+    <t-card
+      v-for="day in days"
+      :key="day.id"
+      class="week-day"
+      :bordered="true"
+      role="button"
+      tabindex="0"
+      :aria-label="`${day.date} ${day.label}：打开训练日`"
+      :data-testid="`week-day-${day.date}`"
+      @click="$router.push({ path: '/training/day', query: { date: day.date } })"
+      @keydown.enter.prevent="$router.push({ path: '/training/day', query: { date: day.date } })"
+      @keydown.space.prevent="$router.push({ path: '/training/day', query: { date: day.date } })"
+    >
       <div class="day-head">
         <span class="muted">{{ day.date }} · {{ day.label }}</span>
         <t-tag :theme="statusTheme(day.status)" variant="light">{{ day.statusText }}</t-tag>
@@ -75,6 +87,7 @@ watch(() => props.date, async () => {
 
 <style scoped>
 .week-day { cursor: pointer; margin-bottom: 10px; }
+.week-day:focus-visible { outline: 2px solid var(--td-brand-color); outline-offset: 2px; }
 .day-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .day-goal { margin: 8px 0 4px; font-weight: 700; color: var(--td-brand-color); }
 .day-items { font-size: 12px; margin-top: 4px; }

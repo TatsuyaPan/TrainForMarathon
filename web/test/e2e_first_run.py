@@ -72,8 +72,15 @@ with sync_playwright() as playwright:
     expect(page.locator(".period-cell")).to_have_count(140)
     shot(page, "first-run-calendar")
 
+    # 3b) 键盘可达性：日历「周次」是可聚焦按钮，Enter 即可进入本周
+    page.get_by_test_id("week-col-1").focus()
+    page.keyboard.press("Enter")
+    expect(page).to_have_url(re.compile(r"#/training/week"))
+    page.go_back()
+    expect(page).to_have_url(re.compile(r"#/training$"))
+
     # 4) 训练周视图
-    page.get_by_role("button", name="查看本周").click()
+    page.get_by_test_id("view-current-week").click()
     expect(page).to_have_url(re.compile(r"#/training/week"))
     expect(page.locator(".week-day")).to_have_count(7)
     shot(page, "first-run-week")
@@ -81,7 +88,9 @@ with sync_playwright() as playwright:
     # 5) 训练日：零会话 → 记录一次训练
     training_day = page.locator(".week-day").filter(has_text="计划").first
     expect(training_day).to_be_visible()
-    training_day.click()
+    # 周视图卡片同样支持键盘打开
+    training_day.focus()
+    page.keyboard.press("Enter")
     expect(page).to_have_url(re.compile(r"#/training/day"))
     day_heading = page.locator(".day-hero h1")
     expect(day_heading).to_be_visible()
