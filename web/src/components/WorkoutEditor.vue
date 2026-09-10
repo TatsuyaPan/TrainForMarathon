@@ -69,11 +69,8 @@ const focusedLabel = computed(() => {
   return RUN_ROLE_LABELS[selectedRole.value] ?? "跑步步骤";
 });
 
-/** core 结构编辑函数内部 structuredClone，Proxy 不能直接克隆，先转普通对象 */
-function plainWorkout() {
-  return JSON.parse(JSON.stringify(props.workout));
-}
-
+// core 的结构编辑函数是纯函数，入口处自行深拷贝（src/clone.ts），
+// 因此可以直接把响应式 workout 传进去，不需要在界面层再转普通对象。
 function publish(workout) {
   emit("update:workout", workout);
 }
@@ -115,7 +112,7 @@ function applySelected(segment) {
   const path = currentPath.value;
   if (!Array.isArray(path) || path.length < 2) return;
   try {
-    publish(replaceSegment(plainWorkout(), path, cleanSegment(segment)));
+    publish(replaceSegment(props.workout, path, cleanSegment(segment)));
   } catch (error) {
     emit("error", error instanceof Error ? error.message : "步骤更新失败");
   }
@@ -125,7 +122,7 @@ function removeSelected() {
   const path = currentPath.value;
   if (!Array.isArray(path) || path.length < 2) return;
   try {
-    publish(removeSegment(plainWorkout(), path));
+    publish(removeSegment(props.workout, path));
     // 删除后索引会前移，焦点不再回到原步骤
     setPath(null);
   } catch (error) {

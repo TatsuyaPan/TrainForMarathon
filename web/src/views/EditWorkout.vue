@@ -153,7 +153,7 @@ function presentationOf(value) {
   return createWorkoutPresentation(value);
 }
 
-/** 响应式对象不能直接被 structuredClone，统一用 JSON 深拷贝成普通对象 */
+/** 统一用 JSON 深拷贝成普通对象，避免把响应式引用带进 core 的纯函数结果 */
 function clone(value) {
   return value === null || value === undefined ? value : JSON.parse(JSON.stringify(value));
 }

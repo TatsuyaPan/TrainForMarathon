@@ -1,12 +1,15 @@
 # @train-for-marathon/core
 
-TrainForMarathon 的平台无关领域核心。运行时代码不依赖微信、CloudBase、DOM、网络或文件系统，因此 Web 与小程序的差异只留在各自界面层。
+TrainForMarathon 的平台无关领域核心。运行时代码不依赖微信、CloudBase、DOM、网络或文件系统，只使用 ECMAScript
+标准能力（例如深拷贝走 `src/clone.ts` 的纯 JS 实现，而不是 HTML 规范的 `structuredClone`），
+因此 Web 与小程序的差异只留在各自界面层。
 
 ## 模块地图
 
 | 模块 | 职责 |
 | --- | --- |
 | `src/domain.ts` | 领域模型：课表结构、计划实例、训练日、`TrainingSession`、进度记录 |
+| `src/clone.ts` | 平台无关深拷贝：领域数据的复制统一走这里 |
 | `src/workflow.ts` | 训练编排：初始化、会话生命周期（计划 → 记录 → 结束）、打卡、课表调整、首页汇总 |
 | `src/session-record.ts` | 训练记录表单模型：初始化、校验、归一化成完成载荷 |
 | `src/dsl/` | Workout DSL：`v1.ts` 解析/序列化、`registry.ts` 版本分发、编辑与展示 |

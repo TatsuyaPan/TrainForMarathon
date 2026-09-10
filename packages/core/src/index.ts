@@ -4,6 +4,7 @@ export const CORE_PACKAGE = {
 } as const;
 
 export * from "./domain.js";
+export * from "./clone.js";
 export * from "./athlete.js";
 export * from "./markdown.js";
 export * from "./dsl/index.js";

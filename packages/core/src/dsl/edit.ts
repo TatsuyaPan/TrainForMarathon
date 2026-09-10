@@ -14,6 +14,7 @@ import type {
   WorkoutPhaseRole,
   WorkoutSegment,
 } from "../domain.js";
+import { deepClone } from "../clone.js";
 import { CURRENT_WORKOUT_DSL_VERSION } from "./registry.js";
 import { MAX_REPEAT_DEPTH } from "./workout.js";
 
@@ -22,7 +23,7 @@ export type SegmentPath = readonly number[];
 export type SegmentKind = "run" | "recovery" | "rest" | "repeat";
 
 function cloneWorkout(workout: Workout): Workout {
-  return structuredClone(workout) as Workout;
+  return deepClone(workout);
 }
 
 /** 阶段下标；不存在返回 -1 */
@@ -70,7 +71,7 @@ export function insertSegment(
   const draft = cloneWorkout(workout);
   const segments = containerFor(draft, parentPath);
   const target = Math.max(0, Math.min(index, segments.length));
-  segments.splice(target, 0, structuredClone(segment) as WorkoutSegment);
+  segments.splice(target, 0, deepClone(segment));
   return draft;
 }
 
@@ -80,7 +81,7 @@ export function replaceSegment(workout: Workout, path: SegmentPath, segment: Wor
   const segments = containerFor(draft, path.slice(0, -1));
   const index = path[path.length - 1];
   if (!segments[index]) throw new Error("路径无效：分部不存在");
-  segments[index] = structuredClone(segment) as WorkoutSegment;
+  segments[index] = deepClone(segment);
   return draft;
 }
 
@@ -218,7 +219,7 @@ export function setPhaseSegments(workout: Workout, role: WorkoutPhaseRole, segme
   const draft = cloneWorkout(workout);
   const phase = draft.phases.find((item) => item.role === role);
   if (!phase) throw new Error(`阶段不存在：${role}`);
-  phase.segments = structuredClone(segments) as WorkoutSegment[];
+  phase.segments = deepClone(segments);
   return draft;
 }
 

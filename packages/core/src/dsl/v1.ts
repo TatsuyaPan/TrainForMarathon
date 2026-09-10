@@ -101,7 +101,7 @@ function isWordBoundary(char: string | undefined): boolean {
 export function parseWorkoutDslV1(rawText: string): Workout {
   const text = String(rawText ?? "");
   if (text.trim() === "") {
-    fail(text, "empty-document", "课程为空：至少需要 GOAL 与 MS 两行", 0, "最小合法课程为 GOAL:有氧基础 / MS:40min@E");
+    fail(text, "empty-workout", "课程为空：至少需要 GOAL 与 MS 两行", 0, "最小合法课程为 GOAL:有氧基础 / MS:40min@E");
   }
 
   const lines = splitSourceLines(text);

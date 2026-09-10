@@ -4,7 +4,7 @@
  */
 
 export type WorkoutDslErrorCode =
-  | "empty-document"
+  | "empty-workout"
   | "unknown-line"
   | "metadata-order"
   | "metadata-duplicate"

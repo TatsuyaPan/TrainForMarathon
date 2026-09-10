@@ -94,19 +94,11 @@ function publish(workout) {
   emit("update:workout", workout);
 }
 
-/**
- * core 结构编辑函数是纯函数，内部使用 structuredClone。
- * Vue 响应式对象是 Proxy，不能直接 structuredClone，因此先转成普通对象。
- */
-function plainWorkout() {
-  return JSON.parse(JSON.stringify(props.workout));
-}
-
 function addSegment(phaseIndexValue, kind, index) {
   const phase = props.workout.phases[phaseIndexValue];
   if (!phase) return;
   const at = index ?? phase.segments.length;
-  publish(insertSegment(plainWorkout(), [phaseIndexValue], at, createDefaultSegment(kind, phase.role)));
+  publish(insertSegment(props.workout, [phaseIndexValue], at, createDefaultSegment(kind, phase.role)));
 }
 
 /** 路径所属阶段的角色（用于决定“跑步”步骤的默认值与显示名称） */
@@ -126,11 +118,11 @@ function containerLength(path) {
 }
 
 function createPhase(role) {
-  publish(addPhase(plainWorkout(), role));
+  publish(addPhase(props.workout, role));
 }
 
 function deletePhase(role) {
-  publish(removePhase(plainWorkout(), role));
+  publish(removePhase(props.workout, role));
   emit("update:selectedPath", null);
 }
 
@@ -141,7 +133,7 @@ function onCommand(command) {
         const parentPath = command.parentPath;
         publish(
           insertSegment(
-            plainWorkout(),
+            props.workout,
             parentPath,
             containerLength(parentPath),
             createDefaultSegment(command.kind, roleForPath(parentPath)),
@@ -150,20 +142,20 @@ function onCommand(command) {
         break;
       }
       case "remove":
-        publish(removeSegment(plainWorkout(), command.path));
+        publish(removeSegment(props.workout, command.path));
         emit("update:selectedPath", null);
         break;
       case "duplicate":
-        publish(duplicateSegment(plainWorkout(), command.path));
+        publish(duplicateSegment(props.workout, command.path));
         break;
       case "up":
-        publish(moveSegment(plainWorkout(), command.path, -1));
+        publish(moveSegment(props.workout, command.path, -1));
         break;
       case "down":
-        publish(moveSegment(plainWorkout(), command.path, 1));
+        publish(moveSegment(props.workout, command.path, 1));
         break;
       case "repeat-count":
-        publish(replaceSegment(plainWorkout(), command.path, { ...segmentAt(plainWorkout(), command.path), repetitions: command.repetitions }));
+        publish(replaceSegment(props.workout, command.path, { ...segmentAt(props.workout, command.path), repetitions: command.repetitions }));
         break;
       case "move-to-role":
         moveToRole(command.path, command.role);
@@ -180,7 +172,7 @@ function moveToRole(path, role) {
   const targetIndex = phaseIndex(props.workout, role);
   if (targetIndex < 0) return;
   const target = props.workout.phases[targetIndex];
-  publish(moveSegmentTo(plainWorkout(), path, [targetIndex], target.segments.length));
+  publish(moveSegmentTo(props.workout, path, [targetIndex], target.segments.length));
   emit("update:selectedPath", null);
 }
 </script>

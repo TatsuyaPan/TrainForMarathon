@@ -6,6 +6,7 @@
  * 内置课程按 Workout DSL v1 全新重写（含训练目的），不再保留旧版语法。
  */
 import { DANIELS_ZONES, type DanielsZone, type Workout } from "./domain.js";
+import { deepClone } from "./clone.js";
 import { parseWorkoutDsl, serializeWorkout } from "./dsl/registry.js";
 import { normalizeWorkout, validateWorkout, workoutZones, type WorkoutIssue } from "./dsl/workout.js";
 
@@ -114,7 +115,7 @@ function nowIso(): string {
 
 /** 新建课程条目；校验不通过直接抛错（写入任何存储之前调用） */
 export function createLibraryCourse(input: CreateLibraryCourseInput): LibraryCourse {
-  const workout = normalizeWorkout(structuredClone(input.workout) as Workout);
+  const workout = normalizeWorkout(deepClone(input.workout));
   const timestamp = nowIso();
   const course: LibraryCourse = {
     id: input.id ?? createLibraryCourseId(),
@@ -143,7 +144,7 @@ export function updateLibraryCourse(
     tags: patch.tags ?? (patch.category && patch.category !== course.category
       ? deriveTags(patch.workout ?? course.workout, patch.category)
       : course.tags),
-    workout: patch.workout ? normalizeWorkout(structuredClone(patch.workout) as Workout) : course.workout,
+    workout: patch.workout ? normalizeWorkout(deepClone(patch.workout)) : course.workout,
     updatedAt: nowIso(),
   };
   const issues = validateLibraryCourse(updated);
@@ -165,7 +166,7 @@ export function cloneLibraryCourse(
   course: LibraryCourse,
   overrides: CloneLibraryCourseOverrides = {},
 ): LibraryCourse {
-  const workout = structuredClone(course.workout) as Workout;
+  const workout = deepClone(course.workout);
   const hasTitle = typeof workout.title === "string" && workout.title.trim() !== "";
   workout.title = overrides.title ?? (hasTitle ? `${workout.title!.trim()}（副本）` : workout.title);
   return createLibraryCourse({
