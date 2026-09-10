@@ -58,6 +58,8 @@ watch(
   max-width: 980px;
   margin: 0 auto;
   padding: 20px 20px 64px;
+  /* 不设 border-box 时，内容宽度会加上左右内边距，窄屏出现整页横向滚动 */
+  box-sizing: border-box;
   width: 100%;
 }
 </style>

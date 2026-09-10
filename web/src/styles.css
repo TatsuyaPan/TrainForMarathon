@@ -17,6 +17,9 @@ body {
   margin: 0 auto;
   padding: 16px;
   min-height: calc(100vh - 64px);
+  /* 不设 border-box 时，内容宽度会加上左右内边距，窄屏出现整页横向滚动 */
+  box-sizing: border-box;
+  width: 100%;
 }
 
 /* 强度色条（与 core INTENSITY_COLORS 一致） */
