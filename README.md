@@ -59,6 +59,17 @@ planned（待完成）
 
 各平台只负责渲染这份数据，不各自拼配速文案，避免同一份能力在不同页面、不同端出现不一致的说法。
 
+课表展示支持**强度 ↔ 配速**两种口径（`TargetDisplayMode`）：
+
+- 强度：DSL 的原始说法（`轻松跑（E）`、`20min@T`）；
+- 配速：把档位换算成本人配速（`3:45–4:00/km（T）`、`20min@T · 3:45–4:00/km`）。
+
+换算只发生在展示层：`packages/core/src/dsl/presentation.ts` 的 `danielsPaceDisplay` / `danielsPaceText`、
+`formatTargetLabel` 与 `createWorkoutPresentation`、`packages/core/src/workflow.ts` 的 `describeWorkout` /
+`formatTrainingDay` 共用同一口径；`trainingPacesFromFitness` 负责「能力 → 配速档位」。
+配速口径保留档位字母，E/M 标注估算，ST 与未建立能力时回退强度标签——切换口径不改变 AST，也不写回 DSL。
+交互细节见 [`docs/superpowers/specs/2026-09-10-course-library-interaction-design.md`](docs/superpowers/specs/2026-09-10-course-library-interaction-design.md) §19。
+
 ## 开发验证
 
 ```bash
@@ -91,6 +102,7 @@ python web/test/e2e_dsl_roundtrip.py
 python web/test/e2e_settings_fitness.py
 python web/test/e2e_mobile_layout.py
 python web/test/e2e_plan_adjust.py
+python web/test/e2e_pace_display.py
 ```
 
 ## 持续集成与发布

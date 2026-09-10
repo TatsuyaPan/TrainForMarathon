@@ -72,6 +72,7 @@ python test/e2e_course_editor_keyboard.py  # 纯键盘：展开步骤、移动�
 python test/e2e_dsl_roundtrip.py      # 导出→重新导入结构与展示一致；十层嵌套与长课程边界
 python test/e2e_settings_fitness.py   # 能力保存 → 重建课表 → 重置全部数据
 python test/e2e_plan_adjust.py        # 调整课表：与本周另一天互换 / 采用备选
+python test/e2e_pace_display.py       # 课表展示口径：强度 ↔ 配速、偏好持久化
 python test/e2e_mobile_layout.py      # 390px 手机宽度下逐页检查横向溢出
 ```
 
@@ -89,7 +90,9 @@ web/
     stores/local-storage-store.js # localStorage DataStore
     stores/course-library.js      # 自定义课程库读写与校验
     stores/course-draft.js        # 页面级草稿传递（导入/复制）
+    stores/display-prefs.js       # 课表展示偏好（强度 / 配速）
     composables/useTrainingData.js # 计划、进度与会话加载
+    composables/usePaceDisplay.js  # 展示口径 + 当前能力配速（全局单例）
     components/           # 课程卡片、结构预览、结构与步骤编辑器、导入对话框
     views/                # 各页面
   test/                   # vitest 用例 + Playwright 冒烟脚本

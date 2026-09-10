@@ -121,6 +121,7 @@ import {
 } from "@core";
 import WorkoutEditor from "../components/WorkoutEditor.vue";
 import StructurePreview from "../components/StructurePreview.vue";
+import { usePaceDisplay } from "../composables/usePaceDisplay.js";
 import { takePendingDraft } from "../stores/course-draft.js";
 import { findCustomCourse, upsertCustomCourse } from "../stores/course-library.js";
 import { notifySuccess } from "../ui-feedback.js";
@@ -136,12 +137,14 @@ const dirty = ref(false);
 const submitting = ref(false);
 const errorMessage = ref("");
 const errors = ref({});
+// 结构预览跟随全局展示口径；编辑器里的步骤列表始终按 DSL 强度编辑，不换口径
+const { presentationContext } = usePaceDisplay();
 
 const displayTitle = computed(() => {
   const workout = draft.value?.workout;
   return workout?.title?.trim() || workout?.goal?.trim() || "新建课程";
 });
-const presentation = computed(() => createWorkoutPresentation(draft.value.workout));
+const presentation = computed(() => createWorkoutPresentation(draft.value.workout, presentationContext.value));
 
 /** 时长/距离合并为一行（如「9 分钟 + 1.2 公里」），标签由 dt 提供，避免重复 */
 function totalsText(durationSeconds, distanceMeters) {

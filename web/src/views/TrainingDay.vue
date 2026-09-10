@@ -29,6 +29,8 @@
       </div>
     </header>
 
+    <DisplayModeSwitch class="day-display-switch" />
+
     <DayAdjustDialog
       v-if="week && day"
       :plan="plan"
@@ -203,12 +205,15 @@ import {
 } from "@core";
 import { service } from "../app-context.js";
 import { useTrainingData } from "../composables/useTrainingData.js";
+import { usePaceDisplay } from "../composables/usePaceDisplay.js";
 import { listCustomCourses } from "../stores/course-library.js";
 import DayAdjustDialog from "../components/DayAdjustDialog.vue";
+import DisplayModeSwitch from "../components/DisplayModeSwitch.vue";
 
 const props = defineProps({ date: { type: String, required: true } });
 const router = useRouter();
 const { loading, plan, load, loadDaySessions, refreshDaySessions } = useTrainingData();
+const { mode: displayMode } = usePaceDisplay();
 
 const day = ref(null);
 const week = ref(null);
@@ -290,7 +295,10 @@ function editSessionWorkout(session) {
 
 function describeWorkoutLines(workout) {
   try {
-    return describeWorkout(workout, plan.value.paces, { includeGoal: false }).join("；");
+    return describeWorkout(workout, plan.value.paces, {
+      includeGoal: false,
+      targetMode: displayMode.value,
+    }).join("；");
   } catch {
     return "结构化训练内容";
   }
@@ -379,6 +387,7 @@ watch(() => props.date, async () => {
 </script>
 
 <style scoped>
+.day-display-switch { margin: 0 0 12px; }
 .day-loading { padding: 48px 0; text-align: center; }
 .day-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 20px; padding: 24px 26px; border: 1px solid #d9e0da; border-radius: 18px; background: linear-gradient(120deg, #ffffff 60%, #edf4ee); }
 .day-kicker,

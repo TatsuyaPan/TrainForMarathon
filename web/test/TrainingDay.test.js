@@ -19,7 +19,12 @@ vi.mock("@core", async () => ({
   removeSession,
   skipSession,
 }));
-vi.mock("../src/app-context.js", () => ({ service }));
+vi.mock("../src/app-context.js", () => ({
+  service,
+  // 训练日只用到「当前能力」的可选展示口径：这里给出已建立能力的档案
+  getAthlete: async () => ({ id: "local-test", provider: "local", thresholdPaceSecondsPerKm: 240 }),
+  onAthleteChange: () => () => {},
+}));
 vi.mock("../src/composables/useTrainingData.js", () => ({ useTrainingData: () => trainingData }));
 vi.mock("vue-router", () => ({ useRouter: () => ({ push }) }));
 

@@ -69,6 +69,7 @@ import {
 } from "@core";
 import StructurePreview from "./StructurePreview.vue";
 import WorkoutStructure from "./WorkoutStructure.vue";
+import { usePaceDisplay } from "../composables/usePaceDisplay.js";
 
 const props = defineProps({
   course: { type: Object, required: true },
@@ -79,7 +80,10 @@ const structureOpen = ref(false);
 const dslOpen = ref(false);
 const copyHint = ref("");
 
-const presentation = computed(() => createWorkoutPresentation(props.course.workout));
+// 展示口径（强度 ↔ 配速）是全局偏好：卡片只读，不在这里放开关
+const { presentationContext } = usePaceDisplay();
+
+const presentation = computed(() => createWorkoutPresentation(props.course.workout, presentationContext.value));
 const categoryLabel = computed(() =>
   props.course.category === "mixed" ? "混合" : LIBRARY_CATEGORY_LABELS[props.course.category] ?? props.course.category);
 const categoryColor = computed(() => INTENSITY_COLORS[props.course.category] ?? "#5b6b7c");

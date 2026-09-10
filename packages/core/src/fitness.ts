@@ -6,7 +6,13 @@
  */
 import type { AthleteProfile } from "./athlete.js";
 import type { DanielsZone } from "./domain.js";
-import { calculateSixSecondPaces, formatPace, type PaceRange } from "./pace.js";
+import {
+  calculateSixSecondPaces,
+  calculateTrainingPaces,
+  formatPace,
+  type PaceRange,
+  type TrainingPaces,
+} from "./pace.js";
 import { COMMON_RACE_DISTANCES, pacesFromVdot, type RaceResult } from "./vdot.js";
 
 /** 能力摘要：可被课表直接引用的配速基准 */
@@ -89,6 +95,26 @@ export function fitnessPaceRows(fitness: AthleteFitness | null | undefined): Pac
     return fitness.vdot ? vdotPaceRows(fitness.vdot) : [];
   }
   return fitness.thresholdPaceSecondsPerKm ? sixSecondPaceRows(fitness.thresholdPaceSecondsPerKm) : [];
+}
+
+/**
+ * 能力摘要 → 完整配速档位（E/M/T/I/R），课表展示与课表生成共用。
+ *
+ * 尚未建立能力、或能力数值不可用时返回 null：调用方回退到强度档位展示，
+ * 不猜测配速（例如没有阈值配速时不要假装能从 6 秒规则推出来）。
+ */
+export function trainingPacesFromFitness(fitness: AthleteFitness | null | undefined): TrainingPaces | null {
+  if (!fitness) return null;
+  try {
+    if (fitness.mode === "vdot") {
+      return fitness.vdot && fitness.vdot > 0 ? pacesFromVdot(fitness.vdot) : null;
+    }
+    const threshold = fitness.thresholdPaceSecondsPerKm;
+    return threshold && threshold > 0 ? calculateTrainingPaces(threshold) : null;
+  } catch {
+    // 数值超出可换算范围（如阈值配速不合法）时按「没有能力」处理
+    return null;
+  }
 }
 
 /** 能力基准模式文案，例如「VDOT 45.0（新手表）」或「6 秒规则（阈值配速）」 */

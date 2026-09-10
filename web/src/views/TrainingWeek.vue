@@ -10,6 +10,7 @@
         目标跑量 {{ week.targetKm.min }}-{{ week.targetKm.max }} km
         <t-button size="small" variant="text" @click="$router.push('/training')">返回日历</t-button>
       </p>
+      <DisplayModeSwitch />
     </div>
 
     <t-card
@@ -42,16 +43,19 @@ import { computed, onMounted, ref, watch } from "vue";
 import { PROGRESS_STATUS_LABELS, findPlanWeek, formatTrainingDay, intensityBarStyle } from "@core";
 import { service } from "../app-context.js";
 import { useTrainingData } from "../composables/useTrainingData.js";
+import { usePaceDisplay } from "../composables/usePaceDisplay.js";
+import DisplayModeSwitch from "../components/DisplayModeSwitch.vue";
 
 const props = defineProps({ date: { type: String, required: true } });
 const { loading, plan, recordsByDay, load } = useTrainingData();
+const { mode: displayMode } = usePaceDisplay();
 const week = ref(null);
-const days = ref([]);
 
-const daysOfWeek = computed(() => {
+/** 展示口径变化时整周文案跟着重算，因此直接由 week/记录派生，不再缓存副本 */
+const days = computed(() => {
   if (!week.value) return [];
   return week.value.days.map((day) => {
-    const formatted = formatTrainingDay(day, plan.value.paces);
+    const formatted = formatTrainingDay(day, plan.value.paces, { targetMode: displayMode.value });
     const status = recordsByDay.value.get(day.id)?.status ?? null;
     return {
       ...formatted,
@@ -70,7 +74,6 @@ function statusTheme(status) {
 function resolveWeek() {
   if (!plan.value) return;
   week.value = findPlanWeek(plan.value, props.date)?.week ?? null;
-  days.value = daysOfWeek.value;
 }
 
 onMounted(async () => {

@@ -70,6 +70,52 @@ export const ZONE_LABELS: Record<DanielsZone, string> = {
   ST: "短距离神经激活",
 };
 
+/**
+ * 课表展示口径：
+ * - `zone`（丹尼尔斯强度档位）：E/M/T/I/R/ST，DSL 的原始说法，任何平台都能显示；
+ * - `pace`（当前能力的配速）：把档位换算成本人的配速区间，需要已建立能力（配速档位）。
+ *
+ * 口径只影响展示，不改变 Workout AST，也不写回 DSL。
+ */
+export type TargetDisplayMode = "zone" | "pace";
+
+/** 强度档位 → 配速区间的展示结果 */
+export interface DanielsPaceDisplay {
+  /** 配速区间文案：快 → 慢，单位只出现一次（如 4:05–4:20/km） */
+  text: string;
+  /** E/M 为估算档位（书 §1 只有 6 秒规则精确定义 T/I/R），展示需标注 */
+  estimated: boolean;
+}
+
+/**
+ * Daniels 强度档位 → 当前能力的配速区间。
+ *
+ * 无对应档位（ST 跨步跑按全力短距离进行，不属于配速区间）或尚未建立能力时返回
+ * `undefined`：界面回退到强度标签，不猜测、不伪造配速。
+ */
+export function danielsPaceDisplay(
+  zone: DanielsZone,
+  paces?: TrainingPaces | null,
+): DanielsPaceDisplay | undefined {
+  if (!paces || zone === "ST") return undefined;
+  const range = paces[zone];
+  if (!range) return undefined;
+  const fast = Number(range.fast);
+  const slow = Number(range.slow);
+  if (!Number.isFinite(fast) || !Number.isFinite(slow) || fast <= 0 || slow <= 0) return undefined;
+  return {
+    text: `${formatPaceValue(fast)}–${formatPaceValue(slow)}/km`,
+    estimated: zone === "E" || zone === "M",
+  };
+}
+
+/** 配速文案（含估算标注）：如 4:45–5:00/km（估算）；课表文字与结构树共用同一口径 */
+export function danielsPaceText(zone: DanielsZone, paces?: TrainingPaces | null): string | undefined {
+  const display = danielsPaceDisplay(zone, paces);
+  if (!display) return undefined;
+  return display.estimated ? `${display.text}（估算）` : display.text;
+}
+
 /** 表格化时长文本：90 秒 / 10 分钟 / 1 小时 5 分 */
 export function formatDurationLabel(seconds: number): string {
   if (seconds < 60) return `${seconds} 秒`;
@@ -92,11 +138,25 @@ export function formatLoadLabel(load: Load): string {
   return load.type === "time" ? formatDurationLabel(load.seconds) : formatDistanceLabel(load.meters);
 }
 
+/** 主目标文字标签的展示选项 */
+export interface TargetLabelOptions {
+  /** 显示口径：默认 `zone`（强度档位）；`pace` 时丹尼尔斯档位换算为配速 */
+  mode?: TargetDisplayMode;
+  /** 当前能力档位；缺少时配速口径回退到强度标签 */
+  paces?: TrainingPaces | null;
+}
+
 /** 主目标的完整文字标签 */
-export function formatTargetLabel(target: TrainingTarget): string {
+export function formatTargetLabel(target: TrainingTarget, options: TargetLabelOptions = {}): string {
   switch (target.type) {
-    case "daniels":
+    case "daniels": {
+      if (options.mode === "pace") {
+        const display = danielsPaceDisplay(target.zone, options.paces);
+        // 配速是叠加信息：仍保留档位字母，强度身份不会因为换口径而消失
+        if (display) return `${display.text}（${target.zone}${display.estimated ? " · 估算" : ""}）`;
+      }
       return `${ZONE_LABELS[target.zone]}（${target.zone}）`;
+    }
     case "pace-range":
       return `${formatPaceValue(target.fastSecondsPerKm)}–${formatPaceValue(target.slowSecondsPerKm)}/km`;
     case "heart-rate":
@@ -234,11 +294,11 @@ function joinLoads(distanceMeters: number, durationSeconds: number): string {
   return parts.join(" + ");
 }
 
-function shortSegmentLabel(segment: WorkoutSegment, role: WorkoutPhaseRole): string {
+function shortSegmentLabel(segment: WorkoutSegment, display: TargetLabelOptions): string {
   if (segment.kind === "rest") return `${formatDurationLabel(segment.durationSeconds)}休息`;
   if (segment.kind === "recovery") return `${formatLoadLabel(segment.load)}恢复`;
   if (segment.kind === "repeat") return "嵌套循环";
-  return `${formatLoadLabel(segment.load)} ${formatTargetShortLabel(segment.target)}`;
+  return `${formatLoadLabel(segment.load)} ${shortTargetLabel(segment.target, display)}`;
 }
 
 function phaseTotals(segments: readonly WorkoutSegment[]): { distanceMeters: number; durationSeconds: number } {
@@ -264,13 +324,16 @@ function buildNodes(
   role: WorkoutPhaseRole,
   parentPath: number[],
   depth: number,
+  display: TargetLabelOptions,
 ): PresentationNode[] {
   return segments.map((segment, index) => {
     const path = [...parentPath, index];
     const id = path.join(".");
     if (segment.kind === "repeat") {
-      const children = buildNodes(segment.segments, role, path, depth + 1);
-      const inner = segment.segments.map((child) => shortSegmentLabel(child, role)).join(" + ");
+      const children = buildNodes(segment.segments, role, path, depth + 1, display);
+      const inner = segment.segments
+        .map((child) => shortSegmentLabel(child, display))
+        .join(" + ");
       return {
         kind: "repeat",
         id,
@@ -318,14 +381,22 @@ function buildNodes(
       kind: "run" as const,
       stepTypeLabel: RUN_ROLE_LABELS[role],
       loadLabel: formatLoadLabel(segment.load),
-      targetLabel: formatTargetLabel(segment.target),
+      targetLabel: formatTargetLabel(segment.target, display),
       rpeLabel: segment.rpe === undefined ? undefined : `RPE ${segment.rpe}`,
       inclineLabel: segment.inclinePercent === undefined ? undefined : `坡度 ${segment.inclinePercent}%`,
     } satisfies PresentationStepNode;
   });
 }
 
-function buildPreview(workout: Workout): WorkoutPresentation["preview"] {
+/** 结构树/预览里的短标签：配速口径下丹尼尔斯档位补一段配速，仍保留档位字母 */
+function shortTargetLabel(target: TrainingTarget, display: TargetLabelOptions): string {
+  const short = formatTargetShortLabel(target);
+  if (display.mode !== "pace" || target.type !== "daniels") return short;
+  const pace = danielsPaceText(target.zone, display.paces);
+  return pace ? `${short} ${pace}` : short;
+}
+
+function buildPreview(workout: Workout, display: TargetLabelOptions): WorkoutPresentation["preview"] {
   const blocks: PreviewBlock[] = [];
   let compressed = false;
   const stop = (): boolean => blocks.length >= MAX_PREVIEW_BLOCKS;
@@ -373,7 +444,7 @@ function buildPreview(workout: Workout): WorkoutPresentation["preview"] {
       kind: "run",
       role,
       color: segmentColor(segment),
-      label: `${formatLoadLabel(segment.load)} ${formatTargetShortLabel(segment.target)}`,
+      label: `${formatLoadLabel(segment.load)} ${shortTargetLabel(segment.target, display)}`,
       unit: segment.load.type === "time" ? "seconds" : "meters",
       weight: segment.load.type === "time" ? segment.load.seconds : segment.load.meters,
     });
@@ -433,8 +504,10 @@ function buildHeadline(workout: Workout, totals: WorkoutTotals): WorkoutHeadline
 }
 
 export interface PresentationContext {
-  /** 运动员配速，用于估算混合单位的完整距离/时间 */
-  paces?: TrainingPaces;
+  /** 运动员配速，用于估算混合单位的完整距离/时间（配速口径下也用于换算档位） */
+  paces?: TrainingPaces | null;
+  /** 展示口径：默认 `zone`（强度档位）；`pace` 时把丹尼尔斯档位换算成配速 */
+  targetMode?: TargetDisplayMode;
 }
 
 /** 生成课程展示数据（课程卡片、结构树、结构预览、汇总共用） */
@@ -443,6 +516,7 @@ export function createWorkoutPresentation(
   context: PresentationContext = {},
 ): WorkoutPresentation {
   const totals = workoutTotals(workout);
+  const display: TargetLabelOptions = { mode: context.targetMode, paces: context.paces };
   const phases: PresentationPhase[] = workout.phases.map((phase, phaseIndex) => {
     const phaseTotal = phaseTotals(phase.segments);
     return {
@@ -452,7 +526,7 @@ export function createWorkoutPresentation(
       summary: joinLoads(phaseTotal.distanceMeters, phaseTotal.durationSeconds),
       distanceMeters: phaseTotal.distanceMeters,
       durationSeconds: phaseTotal.durationSeconds,
-      nodes: buildNodes(phase.segments, phase.role, [phaseIndex], 1),
+      nodes: buildNodes(phase.segments, phase.role, [phaseIndex], 1, display),
     };
   });
   return {
@@ -462,9 +536,9 @@ export function createWorkoutPresentation(
     note: workout.note,
     headline: buildHeadline(workout, totals),
     totals,
-    estimate: estimateWorkoutTotals(workout, context.paces),
+    estimate: estimateWorkoutTotals(workout, context.paces ?? undefined),
     phases,
-    preview: buildPreview(workout),
+    preview: buildPreview(workout, display),
   };
 }
 

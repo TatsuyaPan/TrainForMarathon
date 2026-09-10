@@ -21,10 +21,12 @@ import type {
   WorkoutSegment,
 } from "./domain.js";
 import {
+  danielsPaceText,
   formatDistanceLabel,
   formatDurationLabel,
   formatLoadLabel,
   formatTargetShortLabel,
+  type TargetDisplayMode,
 } from "./dsl/presentation.js";
 import type { TrainingPaces } from "./pace.js";
 import { formatPaceValue } from "./pace.js";
@@ -938,29 +940,23 @@ function targetText(target: TrainingTarget): string {
   return formatTargetShortLabel(target);
 }
 
-/** 配速区间文本（如 4:05–4:20/km）；E/M 标注估算 */
-function paceZoneText(zone: string, paces: TrainingPaces): string {
-  const range = paces[zone as keyof TrainingPaces];
-  if (!range || typeof range === "undefined") return "";
-  if (range === null) return "";
-  // 与 DSL / 展示层保持同一约定：快 → 慢，单位只出现一次
-  const label = `${formatPaceValue(range.fast)}–${formatPaceValue(range.slow)}/km`;
-  return zone === "E" || zone === "M" ? `${label}（估算）` : label;
-}
-
 /**
  * 描述一个分部（循环展开为一行括号内序列）。
  * 恢复与休息是一等步骤，与跑步步骤同样逐条呈现。
+ *
+ * showPace=false 时只给强度档位（课表展示的「强度」口径）；
+ * 打开时补上当前能力的配速（「配速」口径）——两种口径都由同一函数产出，避免各写一遍。
  */
 function describeSegment(
   segment: WorkoutSegment,
   paces: TrainingPaces,
   role: WorkoutPhaseRole,
   depth: number,
+  showPace: boolean,
 ): string {
   if (segment.kind === "repeat") {
     const inner = segment.segments
-      .map((child) => describeSegment(child, paces, role, depth + 1))
+      .map((child) => describeSegment(child, paces, role, depth + 1, showPace))
       .join(" + ");
     return `${segment.repetitions} × （${inner}）`;
   }
@@ -974,8 +970,8 @@ function describeSegment(
   if (role === "warmup") parts.push("热身");
   if (role === "cooldown") parts.push("冷身");
   parts.push(`${loadText(segment.load)}@${targetText(segment.target)}`);
-  if (segment.target.type === "daniels") {
-    const paceText = paceZoneText(segment.target.zone, paces);
+  if (showPace && segment.target.type === "daniels") {
+    const paceText = danielsPaceText(segment.target.zone, paces);
     if (paceText) parts.push(paceText);
   } else if (segment.target.type === "pace-range") {
     parts.push(
@@ -995,16 +991,24 @@ function describeSegment(
   return parts.join(" · ");
 }
 
+export interface DescribeWorkoutOptions {
+  /** 是否含入训练目的行，默认含入 */
+  includeGoal?: boolean;
+  /** 展示口径：默认 `pace`（档位 + 当前能力配速）；`zone` 只给强度档位 */
+  targetMode?: TargetDisplayMode;
+}
+
 /** 将 Workout 描述为展示行（每分部一行）；goal 由调用方决定是否含入 */
 export function describeWorkout(
   workout: Workout,
   paces: TrainingPaces,
-  options: { includeGoal?: boolean } = {},
+  options: DescribeWorkoutOptions = {},
 ): string[] {
   const lines: string[] = [];
   if (workout.goal && options.includeGoal !== false) lines.push(`目标：${workout.goal}`);
+  const showPace = options.targetMode !== "zone";
   for (const phase of workout.phases) {
-    lines.push(...phase.segments.map((segment) => describeSegment(segment, paces, phase.role, 0)));
+    lines.push(...phase.segments.map((segment) => describeSegment(segment, paces, phase.role, 0, showPace)));
   }
   return lines;
 }
@@ -1013,9 +1017,13 @@ export function describeWorkout(
 export function formatTrainingDay(
   day: PlanInstanceDay,
   paces?: TrainingPaces,
+  options: { targetMode?: TargetDisplayMode } = {},
 ): FormattedTrainingDay {
   if (day.workout && paces) {
-    const textLines = describeWorkout(day.workout, paces, { includeGoal: false });
+    const textLines = describeWorkout(day.workout, paces, {
+      includeGoal: false,
+      targetMode: options.targetMode,
+    });
     return {
       id: day.id,
       date: day.date,

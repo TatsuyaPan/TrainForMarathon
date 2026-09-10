@@ -3,7 +3,11 @@
     <header class="library-hero">
       <div>
         <h1>课程库</h1>
-        <p class="muted">选择、复制或创建适合自己的训练课程。强度色阶：E 绿 → M 黄绿 → T 黄 → I 红 → R 紫 → ST 淡紫。</p>
+        <p class="muted">
+          选择、复制或创建适合自己的训练课程。强度色阶：E 绿 → M 黄绿 → T 黄 → I 红 → R 紫 → ST 淡紫。
+          结构里的目标可以按<strong>强度</strong>（E/M/T/I/R/ST）或按当前能力的<strong>配速</strong>显示。
+        </p>
+        <DisplayModeSwitch />
       </div>
       <div class="hero-actions">
         <t-button data-testid="open-import" variant="outline" @click="importVisible = true">导入课程</t-button>
@@ -91,6 +95,7 @@ import {
 } from "@core";
 import CourseCard from "../components/CourseCard.vue";
 import CourseImportDialog from "../components/CourseImportDialog.vue";
+import DisplayModeSwitch from "../components/DisplayModeSwitch.vue";
 import { setPendingDraft } from "../stores/course-draft.js";
 import { clearCourseLibrary, readCourseLibrary, removeCustomCourse } from "../stores/course-library.js";
 import { notifyError } from "../ui-feedback.js";
@@ -183,6 +188,7 @@ function clearInvalid() {
 .library-page { display: grid; gap: 16px; }
 .library-hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .library-hero h1 { margin: 0 0 4px; font-size: 24px; }
+.library-hero .display-switch { margin-top: 8px; }
 .hero-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .storage-banner {
   display: flex;
