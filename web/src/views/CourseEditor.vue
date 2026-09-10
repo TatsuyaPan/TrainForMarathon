@@ -122,6 +122,7 @@ import WorkoutEditor from "../components/WorkoutEditor.vue";
 import StructurePreview from "../components/StructurePreview.vue";
 import { takePendingDraft } from "../stores/course-draft.js";
 import { findCustomCourse, upsertCustomCourse } from "../stores/course-library.js";
+import { notifySuccess } from "../ui-feedback.js";
 
 const route = useRoute();
 const router = useRouter();
@@ -306,7 +307,7 @@ function save() {
     });
     upsertCustomCourse(course);
     dirty.value = false;
-    window.alert("课程已保存");
+    notifySuccess("课程已保存");
     backToLibraryWithCategory();
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : "保存失败";

@@ -95,6 +95,7 @@ import {
   getAthlete,
   saveAthleteFitness,
 } from "../app-context.js";
+import { notifyWarning } from "../ui-feedback.js";
 
 const athlete = ref(null);
 // 能力摘要与档位文案全部来自 core：同一份能力在 web / 小程序里说法一致
@@ -141,7 +142,7 @@ async function saveSix() {
     sixVisible.value = false;
     await reload();
     const hint = await fitnessSavedHint();
-    if (hint) window.alert(hint.replace(/^；/, ""));
+    if (hint) notifyWarning(hint.replace(/^；/, ""));
   } catch (error) {
     sixError.value = error instanceof Error ? error.message : "保存失败";
   }

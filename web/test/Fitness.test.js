@@ -16,6 +16,11 @@ vi.mock("../src/app-context.js", () => ({
   getAthlete,
   saveAthleteFitness,
 }));
+vi.mock("../src/ui-feedback.js", () => ({
+  notifySuccess: vi.fn(),
+  notifyError: vi.fn(),
+  notifyWarning: vi.fn(),
+}));
 
 const ButtonStub = { emits: ["click"], template: "<button @click=\"$emit('click')\"><slot /></button>" };
 const InputNumberStub = {

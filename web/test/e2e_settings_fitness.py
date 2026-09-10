@@ -119,7 +119,7 @@ with sync_playwright() as playwright:
     # 1) 我的能力：显示已保存能力
     page.goto(f"{BASE_URL}/#/fitness")
     page.wait_for_load_state("networkidle")
-    expect(page.get_by_text("VDOT 40.0")).to_be_visible()
+    expect(page.get_by_test_id("fitness-mode")).to_have_text("VDOT 40.0")
     shot(page, "fitness-vdot")
 
     # 2) 配速计算器：推算并保存为我的能力
@@ -133,6 +133,8 @@ with sync_playwright() as playwright:
     shot(page, "paces-vdot")
     page.locator(".result-block").get_by_role("button", name="保存为我的能力").click()
     page.wait_for_timeout(300)
+    # 保存反馈是应用内消息（不再是阻塞式 window.alert）
+    expect(page.locator(".t-message").filter(has_text="已保存为我的能力")).to_have_count(1)
 
     stored_vdot = page.evaluate("JSON.parse(localStorage.getItem('tfm:athletes:current')).vdot")
     assert stored_vdot and abs(stored_vdot - computed) < 0.05, (stored_vdot, computed)
@@ -140,14 +142,14 @@ with sync_playwright() as playwright:
     # 3) 跨页面一致性：能力管理页应立即显示新能力，而不是旧缓存
     page.goto(f"{BASE_URL}/#/fitness")
     page.wait_for_load_state("networkidle")
-    expect(page.get_by_text(f"VDOT {stored_vdot:.1f}")).to_be_visible()
-    expect(page.get_by_text("VDOT 40.0")).to_have_count(0)
+    # 断言落在能力卡片上，而不是刚弹出的应用内消息（消息里也会出现同一串配速文案）
+    expect(page.get_by_test_id("fitness-mode")).to_have_text(f"VDOT {stored_vdot:.1f}")
     shot(page, "fitness-refreshed")
 
     # 4) 配置页：用最新能力重建课表
     page.goto(f"{BASE_URL}/#/settings")
     page.wait_for_load_state("networkidle")
-    expect(page.get_by_text(f"VDOT {stored_vdot:.1f}")).to_be_visible()
+    expect(page.locator(".kv").filter(has_text="配速基准")).to_contain_text(f"VDOT {stored_vdot:.1f}")
     page.get_by_role("button", name="保存并重建课表").click()
     expect(page).to_have_url(re.compile(r"#/training$"))
 
@@ -211,7 +213,8 @@ with sync_playwright() as playwright:
     expect(page.get_by_role("button", name="建立配置")).to_be_visible()
     shot(page, "settings-reset")
 
-    assert any("已保存为我的能力" in message for message in dialogs), dialogs
+    # 破坏性操作仍然用原生 confirm 二次确认
+    assert any("清除能力" in message for message in dialogs), dialogs
     assert not console_errors, console_errors
     browser.close()
 

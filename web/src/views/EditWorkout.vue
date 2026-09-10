@@ -98,6 +98,7 @@ import WorkoutEditor from "../components/WorkoutEditor.vue";
 import StructurePreview from "../components/StructurePreview.vue";
 import CourseImportDialog from "../components/CourseImportDialog.vue";
 import { listCustomCourses } from "../stores/course-library.js";
+import { notifySuccess } from "../ui-feedback.js";
 
 const props = defineProps({
   planId: { type: String, required: true },
@@ -188,7 +189,7 @@ async function persist() {
   try {
     if (editingSession.value) await persistSessionWorkout();
     else await persistDayWorkout();
-    window.alert("课表已保存");
+    notifySuccess("课表已保存");
     backToDay();
   } catch (caught) {
     errorMessage.value = caught instanceof Error ? caught.message : "课表保存失败";

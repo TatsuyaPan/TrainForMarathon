@@ -66,7 +66,8 @@ with sync_playwright() as playwright:
 
     # 3) 训练周期：20 周、当前周、完成统计
     expect(page.get_by_text("训练周期")).to_be_visible()
-    expect(page.get_by_text("共 20 周")).to_be_visible()
+    # 限定在页面标题里：保存课表的应用内消息也含「共 20 周」，避免命中两处
+    expect(page.locator(".page-hero").get_by_text("共 20 周")).to_be_visible()
     expect(page.locator(".period-row")).to_have_count(20)
     expect(page.locator(".period-cell")).to_have_count(140)
     shot(page, "first-run-calendar")

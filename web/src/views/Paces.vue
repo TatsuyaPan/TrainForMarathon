@@ -105,6 +105,7 @@ import {
   vdotPaceRows,
 } from "@core";
 import { fitnessSavedHint, saveAthleteFitness } from "../app-context.js";
+import { notifyError, notifySuccess } from "../ui-feedback.js";
 
 const mode = ref("vdot");
 const today = new Date().toISOString().slice(0, 10);
@@ -136,11 +137,11 @@ function addResult() {
 
 function calcSix() {
   const threshold = sixMin.value * 60 + sixSec.value;
-  if (!(threshold > 0)) { window.alert("请输入有效配速"); return; }
+  if (!(threshold > 0)) { notifyError("请输入有效配速"); return; }
   try {
     sixResult.value = sixSecondPaceRows(threshold);
   } catch (error) {
-    window.alert(error instanceof Error ? error.message : "配速无效");
+    notifyError(error instanceof Error ? error.message : "配速无效");
   }
 }
 
@@ -148,9 +149,9 @@ async function saveSix() {
   const threshold = sixMin.value * 60 + sixSec.value;
   try {
     await saveAthleteFitness({ mode: "sixSecond", thresholdPaceSecondsPerKm: threshold });
-    window.alert(`已保存为我的能力（6 秒规则）${await fitnessSavedHint()}`);
+    notifySuccess(`已保存为我的能力（6 秒规则）${await fitnessSavedHint()}`);
   } catch (e) {
-    window.alert(e.message);
+    notifyError(e.message);
   }
 }
 
@@ -159,7 +160,7 @@ function calcVdot() {
   for (const result of results.value) {
     const timeSeconds = parseRaceTime(result.timeText);
     if (!Number.isFinite(timeSeconds) || timeSeconds <= 0) {
-      window.alert("请填写有效的成绩时间（如 45:00 或 1:24:30）");
+      notifyError("请填写有效的成绩时间（如 45:00 或 1:24:30）");
       return;
     }
     parsed.push({ distanceM: result.distanceM, timeSeconds, label: result.note || undefined, date: result.date });
@@ -188,7 +189,7 @@ function calcVdot() {
     }
     vdotRows.value = vdotPaceRows(assessment.vdot);
   } catch (e) {
-    window.alert(e.message);
+    notifyError(e.message);
   }
 }
 
@@ -206,11 +207,11 @@ async function saveVdot() {
       raceResults: parsed,
       isBeginner: vdotResult.value?.vdot <= 30,
     });
-    window.alert(
+    notifySuccess(
       `已保存为我的能力（VDOT ${vdotResult.value.vdot.toFixed(1)}${vdotResult.value.vdot <= 30 ? "，新手表" : ""}）${await fitnessSavedHint()}`,
     );
   } catch (e) {
-    window.alert(e.message);
+    notifyError(e.message);
   }
 }
 </script>

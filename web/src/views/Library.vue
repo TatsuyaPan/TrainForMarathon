@@ -93,6 +93,7 @@ import CourseCard from "../components/CourseCard.vue";
 import CourseImportDialog from "../components/CourseImportDialog.vue";
 import { setPendingDraft } from "../stores/course-draft.js";
 import { clearCourseLibrary, readCourseLibrary, removeCustomCourse } from "../stores/course-library.js";
+import { notifyError } from "../ui-feedback.js";
 
 const router = useRouter();
 const route = useRoute();
@@ -148,7 +149,7 @@ function copyCourse(course) {
     // 列表里的课程来自响应式对象，core 的复制使用 structuredClone，需要先还原为普通对象
     cloned = cloneLibraryCourse(JSON.parse(JSON.stringify(course)));
   } catch (error) {
-    window.alert(error instanceof Error ? error.message : "复制失败");
+    notifyError(error instanceof Error ? error.message : "复制失败");
     return;
   }
   setPendingDraft(cloned, "copy");

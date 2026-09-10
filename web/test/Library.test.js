@@ -7,6 +7,11 @@ import { peekPendingDraft } from "../src/stores/course-draft.js";
 
 const { push, route } = vi.hoisted(() => ({ push: vi.fn(), route: { query: {} } }));
 vi.mock("vue-router", () => ({ useRouter: () => ({ push }), useRoute: () => route }));
+vi.mock("../src/ui-feedback.js", () => ({
+  notifySuccess: vi.fn(),
+  notifyError: vi.fn(),
+  notifyWarning: vi.fn(),
+}));
 
 const ButtonStub = {
   props: ["disabled"],

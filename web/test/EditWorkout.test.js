@@ -14,6 +14,11 @@ const { push, service } = vi.hoisted(() => ({
 
 vi.mock("vue-router", () => ({ useRouter: () => ({ push }) }));
 vi.mock("../src/app-context.js", () => ({ service }));
+vi.mock("../src/ui-feedback.js", () => ({
+  notifySuccess: vi.fn(),
+  notifyError: vi.fn(),
+  notifyWarning: vi.fn(),
+}));
 
 const ButtonStub = {
   props: ["disabled"],

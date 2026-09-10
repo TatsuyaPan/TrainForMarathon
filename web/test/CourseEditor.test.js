@@ -4,6 +4,7 @@ import { createLibraryCourse, parseWorkoutDsl } from "@core";
 import CourseEditor from "../src/views/CourseEditor.vue";
 import { COURSE_LIBRARY_KEY, findCustomCourse, listCustomCourses } from "../src/stores/course-library.js";
 import { setPendingDraft } from "../src/stores/course-draft.js";
+import { notifySuccess } from "../src/ui-feedback.js";
 
 const { push, replace, route } = vi.hoisted(() => ({
   push: vi.fn(),
@@ -14,6 +15,13 @@ const { push, replace, route } = vi.hoisted(() => ({
 vi.mock("vue-router", () => ({
   useRouter: () => ({ push, replace }),
   useRoute: () => route,
+}));
+
+// 反馈层真实实现会引入整个 TDesign，测试里只关心「有没有给出提示」
+vi.mock("../src/ui-feedback.js", () => ({
+  notifySuccess: vi.fn(),
+  notifyError: vi.fn(),
+  notifyWarning: vi.fn(),
 }));
 
 const ButtonStub = {
@@ -96,6 +104,7 @@ describe("CourseEditor", () => {
     expect(stored[0].workout.title).toBe("我的新课程");
     expect(stored[0].category).toBe("E");
     expect(stored[0].tags).toEqual(["E"]);
+    expect(notifySuccess).toHaveBeenCalledWith("课程已保存");
     expect(push).toHaveBeenCalledWith({ path: "/library", query: { category: "E" } });
   });
 

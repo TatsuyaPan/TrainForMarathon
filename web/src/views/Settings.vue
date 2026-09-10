@@ -117,6 +117,7 @@ import {
   resetSetup,
 } from "@core";
 import { getAthlete, invalidateAthlete, service } from "../app-context.js";
+import { notifyError, notifySuccess } from "../ui-feedback.js";
 
 const athlete = ref(null);
 const hasPlan = ref(false);
@@ -178,7 +179,7 @@ async function save() {
         for (const result of results.value) {
           const timeSeconds = parseRaceTime(result.timeText);
           if (!Number.isFinite(timeSeconds) || timeSeconds <= 0) {
-            window.alert("请填写有效的成绩时间（如 45:00 或 1:24:30）");
+            notifyError("请填写有效的成绩时间（如 45:00 或 1:24:30）");
             return;
           }
           parsed.push({ distanceM: result.distanceM, timeSeconds, label: result.note || undefined, date: result.date });
@@ -193,10 +194,10 @@ async function save() {
     }
     const plan = await createSetup(service, a, config);
     invalidateAthlete();
-    window.alert(`课表已保存（共 ${plan.weeks.length} 周${skipFitness.value ? "，使用已保存能力" : ""}）。`);
+    notifySuccess(`课表已保存（共 ${plan.weeks.length} 周${skipFitness.value ? "，使用已保存能力" : ""}）。`);
     window.location.hash = "#/training";
   } catch (e) {
-    window.alert(e.message);
+    notifyError(e.message);
   } finally {
     saving.value = false;
   }
