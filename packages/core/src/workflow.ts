@@ -395,7 +395,7 @@ function sessionId(planId: string, dayId: string, seq: number): string {
 
 /**
  * 惰性生成某训练日的会话：该日尚无会话时，从计划内容生成一个 planned 训练
- * （休息日不生成）；已有则原样返回（按 seq 排序）。
+ * （休息日不生成）；已有则按 seq 排序返回，并把「计划位」同步到当天最新课表。
  */
 export async function ensureDaySessions(
   service: TrainingDataService,
@@ -403,8 +403,9 @@ export async function ensureDaySessions(
   day: PlanInstanceDay,
 ): Promise<TrainingSession[]> {
   const existing = await service.listSessions(plan.id, day.id);
-  if (existing.length > 0) return [...existing].sort((a, b) => a.seq - b.seq);
-  if (day.items.every((item) => item.type === "REST")) return [];
+  if (existing.length > 0) return syncDayPlannedWorkout(service, plan, day);
+  // 休息日：没有结构化课表就不生成会话；课表被补上后（编辑器可为休息日加课）正常生成
+  if (!day.workout && day.items.every((item) => item.type === "REST")) return [];
   const timestamp = new Date().toISOString();
   const session: TrainingSession = {
     id: sessionId(plan.id, day.id, 0),
@@ -419,6 +420,55 @@ export async function ensureDaySessions(
   };
   await service.saveSession(session);
   return [session];
+}
+
+/**
+ * 课表变更同步：训练日课表被编辑（或重新生成）后，把该日的「计划位」（seq 0、仍是
+ * planned 的会话）对齐到当天最新计划内容。
+ *
+ * 已结束的会话（done / skipped）保留当时快照——它们是既成事实的训练记录，
+ * 不因事后改课表而改写；追加训练（seq > 0）同样不动。
+ */
+export async function syncDayPlannedWorkout(
+  service: TrainingDataService,
+  plan: PlanInstance & { id: string },
+  day: PlanInstanceDay,
+): Promise<TrainingSession[]> {
+  const sessions = [...(await service.listSessions(plan.id, day.id))].sort((a, b) => a.seq - b.seq);
+  if (sessions.length === 0 || !day.workout) return sessions;
+
+  const synced: TrainingSession[] = [];
+  for (const session of sessions) {
+    const isPlanSlot = session.seq === 0 && session.status === "planned";
+    if (!isPlanSlot || (session.label === day.label && workoutEquals(session.plannedWorkout, day.workout))) {
+      synced.push(session);
+      continue;
+    }
+    const updated: TrainingSession = {
+      ...session,
+      label: day.label,
+      plannedWorkout: day.workout,
+      updatedAt: new Date().toISOString(),
+    };
+    await service.saveSession(updated);
+    synced.push(updated);
+  }
+  return synced;
+}
+
+/** 结构化课表等值比较（undefined 与缺省键等价；键序差异不敏感） */
+function workoutEquals(left: Workout | undefined, right: Workout | undefined): boolean {
+  return stableStringify(left) === stableStringify(right);
+}
+
+function stableStringify(value: unknown): string {
+  if (value === undefined) return "null";
+  if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "null";
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, entry]) => entry !== undefined)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${stableStringify(entry)}`).join(",")}}`;
 }
 
 /** 完成训练：记录实际内容与训练日志，生命周期 → done */

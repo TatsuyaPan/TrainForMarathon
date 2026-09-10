@@ -8,6 +8,7 @@ import {
   getHomeSummary,
   sessionsToProgress,
   skipSession,
+  syncDayPlannedWorkout,
 } from "../src/workflow.js";
 import type { DataStore } from "../src/workflow.js";
 import type { TrainingSession } from "../src/domain.js";
@@ -117,6 +118,28 @@ describe("training session lifecycle", () => {
     expect(restSessions.length).toBe(0);
   });
 
+  it("generates a session once a rest day gains a structured workout", async () => {
+    const service = new DefaultTrainingDataService(new MemoryStore());
+    const athlete = (await service.getAthleteProfile()) ?? {
+      id: "a", provider: "local", createdAt: "x", updatedAt: "x", schemaVersion: 1,
+    };
+    const plan = await createSetup(service, athlete, {
+      templateId: "20-week", raceDate: RACE_DATE, maxWeeklyKm: 80,
+      paceMode: "sixSecond", thresholdPaceSecondsPerKm: 240,
+    });
+    const restDay = plan.weeks[19].days.find((d) => d.items.every((i) => i.type === "REST"));
+    expect(await ensureDaySessions(service, plan, restDay)).toEqual([]);
+
+    // 编辑器为休息日补上结构化课表
+    const editedPlan = structuredClone(plan);
+    const editedDay = editedPlan.weeks.flatMap((week) => week.days).find((entry) => entry.id === restDay.id);
+    editedDay.workout = { dslVersion: 1, goal: "放松恢复跑", phases: [] };
+
+    const sessions = await ensureDaySessions(service, editedPlan, editedDay);
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].plannedWorkout.goal).toBe("放松恢复跑");
+  });
+
   it("completes a session with actual content and a training log", async () => {
     const service = new DefaultTrainingDataService(new MemoryStore());
     const athlete = (await service.getAthleteProfile()) ?? {
@@ -187,5 +210,51 @@ describe("training session lifecycle", () => {
     // 会话优先：距离取 session 的 10km
     expect(summary.progressCount).toBe(1);
     expect(summary.progressRecords[0].actualDistanceKm).toBe(10);
+  });
+
+  it("follows an edited day workout for planned sessions and freezes finished ones", async () => {
+    const service = new DefaultTrainingDataService(new MemoryStore());
+    const athlete = (await service.getAthleteProfile()) ?? {
+      id: "a", provider: "local", createdAt: "x", updatedAt: "x", schemaVersion: 1,
+    };
+    const plan = await createSetup(service, athlete, {
+      templateId: "20-week", raceDate: RACE_DATE, maxWeeklyKm: 80,
+      paceMode: "sixSecond", thresholdPaceSecondsPerKm: 240,
+    });
+    const day = plan.weeks[19].days.find((d) => !d.items.every((i) => i.type === "REST"));
+    const [planned] = await ensureDaySessions(service, plan, day);
+    expect(planned.plannedWorkout.goal).toBe(day.workout.goal);
+
+    // 教练在课表编辑器里就地改写当天计划内容
+    const withEditedDay = (goal) => {
+      const edited = structuredClone(plan);
+      const target = edited.weeks.flatMap((week) => week.days).find((entry) => entry.id === day.id);
+      target.workout = { ...structuredClone(day.workout), goal };
+      return { plan: edited, day: target };
+    };
+
+    const first = withEditedDay("改为比赛配速");
+    const [synced] = await ensureDaySessions(service, first.plan, first.day);
+    expect(synced.status).toBe("planned");
+    expect(synced.plannedWorkout.goal).toBe("改为比赛配速");
+    // 幂等：内容一致的重复同步不产生写操作以外的副作用（对象保持等价）
+    const [resynced] = await syncDayPlannedWorkout(service, first.plan, first.day);
+    expect(resynced.plannedWorkout.goal).toBe("改为比赛配速");
+
+    // 结束首个训练 + 追加一次临时训练后，再次改课表
+    await completeSession(service, synced, { actualDistanceKm: 12, log: "按新计划完成" });
+    const extra = await addExtraSession(service, plan.id, day.id, { label: "晚间放松跑" });
+    const second = withEditedDay("再次调整");
+    const after = await syncDayPlannedWorkout(service, second.plan, second.day);
+
+    const [doneSession, extraSession] = after;
+    // 已完成会话保留当时快照，不被事后改课表改写
+    expect(doneSession.status).toBe("done");
+    expect(doneSession.plannedWorkout.goal).toBe("改为比赛配速");
+    expect(doneSession.actualDistanceKm).toBe(12);
+    // 追加训练不属于「计划位」，同样保持原样
+    expect(extraSession.id).toBe(extra.id);
+    expect(extraSession.plannedWorkout).toBeUndefined();
+    expect(extraSession.label).toBe("晚间放松跑");
   });
 });
