@@ -86,3 +86,9 @@ python web/test/e2e_settings_fitness.py
 python web/test/e2e_mobile_layout.py
 python web/test/e2e_plan_adjust.py
 ```
+
+## 持续集成与发布
+
+- `.github/workflows/ci.yml`：push / PR 时安装 core 与 web 依赖并执行 `npm run verify`。
+- `.github/workflows/pages.yml`：`main` 分支先跑测试，再把 `web/dist` 发布到 GitHub Pages。
+  站点只发布 web 构建产物，不发布仓库源码——所以课程内容、核心包与页面改动都随同一次构建上线。

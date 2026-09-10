@@ -1,0 +1,63 @@
+# 构建 core 与 web，并把 web/dist 发布到 GitHub Pages。
+# 站点的唯一事实来源是 packages/core 与 web 的源码：不再发布仓库根目录。
+name: Deploy web to Pages
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            web/package-lock.json
+
+      - name: 安装依赖
+        run: |
+          npm ci
+          npm ci --prefix web
+
+      # 先跑测试，测试不过就不发布
+      - name: 测试
+        run: |
+          npm test
+          npm --prefix web test
+
+      - name: 构建
+        run: |
+          npm run build
+          npm --prefix web run build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: 测试与构建
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            web/package-lock.json
+
+      - name: 安装 core 依赖
+        run: npm ci
+
+      - name: 安装 web 依赖
+        run: npm ci --prefix web
+
+      # core 单元测试 + 类型检查 + 构建，然后是 web 测试与生产构建
+      - name: 校验
+        run: npm run verify
