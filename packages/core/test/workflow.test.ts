@@ -3,6 +3,7 @@ import {
   DefaultTrainingDataService,
   checkIn,
   createSetup,
+  describeWorkout,
   ensureAthlete,
   getHomeSummary,
   getSetupState,
@@ -10,6 +11,8 @@ import {
   todayIso,
 } from "../src/workflow.js";
 import type { DataStore } from "../src/workflow.js";
+import { calculateTrainingPaces } from "../src/pace.js";
+import { parseWorkoutDsl } from "../src/dsl/registry.js";
 
 /** 内存 DataStore（模拟任何平台存储） */
 class MemoryStore implements DataStore {
@@ -89,5 +92,25 @@ describe("training workflow (platform-agnostic)", () => {
 
   it("todayIso uses UTC calendar day", () => {
     expect(todayIso(new Date("2026-09-10T18:30:00.000Z"))).toBe("2026-09-10");
+  });
+
+  it("describes pace ranges fast-to-slow with a single unit", () => {
+    // 阈值 4:00/km → E 3:10–3:30/km
+    const paces = calculateTrainingPaces(240);
+
+    const easy = describeWorkout(parseWorkoutDsl("GOAL:有氧基础\nMS:40min@E"), paces, {
+      includeGoal: false,
+    });
+    expect(easy[0]).toContain("3:10–3:30/km（估算）");
+
+    const custom = describeWorkout(
+      parseWorkoutDsl("GOAL:自定义配速\nMS:5km@P4:45-5:00/km"),
+      paces,
+      { includeGoal: false },
+    );
+    expect(custom[0]).toContain("4:45–5:00/km（自定义配速）");
+
+    // 单位只出现一次（历史缺陷：4:50/km–5:10/km/km）
+    expect([...easy, ...custom].join(" ")).not.toContain("/km/km");
   });
 });

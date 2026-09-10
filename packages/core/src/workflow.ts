@@ -24,7 +24,7 @@ import {
   formatTargetShortLabel,
 } from "./dsl/presentation.js";
 import type { TrainingPaces } from "./pace.js";
-import { formatPace } from "./pace.js";
+import { formatPaceValue } from "./pace.js";
 import { assessFromResults } from "./vdot.js";
 import type { RaceResult } from "./vdot.js";
 import { calculateWeekStats } from "./stats.js";
@@ -619,7 +619,8 @@ function paceZoneText(zone: string, paces: TrainingPaces): string {
   const range = paces[zone as keyof TrainingPaces];
   if (!range || typeof range === "undefined") return "";
   if (range === null) return "";
-  const label = `${formatPace(range.slow)}–${formatPace(range.fast)}/km`;
+  // 与 DSL / 展示层保持同一约定：快 → 慢，单位只出现一次
+  const label = `${formatPaceValue(range.fast)}–${formatPaceValue(range.slow)}/km`;
   return zone === "E" || zone === "M" ? `${label}（估算）` : label;
 }
 
@@ -654,7 +655,7 @@ function describeSegment(
     if (paceText) parts.push(paceText);
   } else if (segment.target.type === "pace-range") {
     parts.push(
-      `${formatPace(segment.target.fastSecondsPerKm)}–${formatPace(segment.target.slowSecondsPerKm)}（自定义配速）`,
+      `${formatPaceValue(segment.target.fastSecondsPerKm)}–${formatPaceValue(segment.target.slowSecondsPerKm)}/km（自定义配速）`,
     );
   } else if (segment.target.type === "heart-rate") {
     parts.push(

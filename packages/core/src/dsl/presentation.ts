@@ -13,6 +13,7 @@ import {
   type WorkoutSegment,
 } from "../domain.js";
 import type { TrainingPaces } from "../pace.js";
+import { formatPaceValue } from "../pace.js";
 import {
   countRepeatBlocks,
   countSteps,
@@ -91,17 +92,13 @@ export function formatLoadLabel(load: Load): string {
   return load.type === "time" ? formatDurationLabel(load.seconds) : formatDistanceLabel(load.meters);
 }
 
-function paceValue(secondsPerKm: number): string {
-  return `${Math.floor(secondsPerKm / 60)}:${String(secondsPerKm % 60).padStart(2, "0")}`;
-}
-
 /** 主目标的完整文字标签 */
 export function formatTargetLabel(target: TrainingTarget): string {
   switch (target.type) {
     case "daniels":
       return `${ZONE_LABELS[target.zone]}（${target.zone}）`;
     case "pace-range":
-      return `${paceValue(target.fastSecondsPerKm)}–${paceValue(target.slowSecondsPerKm)}/km`;
+      return `${formatPaceValue(target.fastSecondsPerKm)}–${formatPaceValue(target.slowSecondsPerKm)}/km`;
     case "heart-rate":
       return target.basis === "reserve"
         ? `储备心率 ${target.minPercent}–${target.maxPercent}%`

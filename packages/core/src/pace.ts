@@ -54,9 +54,14 @@ export function calculateTrainingPaces(thresholdSecondsPerKm: number): TrainingP
   };
 }
 
-export function formatPace(secondsPerKm: number): string {
+/** 仅配速数值（如 4:45）：单位由调用方拼接，避免出现 4:45/km/km */
+export function formatPaceValue(secondsPerKm: number): string {
   const seconds = Math.round(secondsPerKm);
   const minutesPart = Math.floor(seconds / 60);
   const secondsPart = String(seconds % 60).padStart(2, "0");
-  return `${minutesPart}:${secondsPart}/km`;
+  return `${minutesPart}:${secondsPart}`;
+}
+
+export function formatPace(secondsPerKm: number): string {
+  return `${formatPaceValue(secondsPerKm)}/km`;
 }
