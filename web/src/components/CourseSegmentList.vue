@@ -49,7 +49,14 @@
             <button type="button" @click="emitAdd(index, 'run')">+ 跑步</button>
             <button type="button" @click="emitAdd(index, 'recovery')">+ 主动恢复</button>
             <button type="button" @click="emitAdd(index, 'rest')">+ 被动休息</button>
-            <button type="button" @click="emitAdd(index, 'repeat')">+ 嵌套循环</button>
+            <button
+              type="button"
+              :disabled="!canNestLoop"
+              :title="canNestLoop ? '' : `最多嵌套 ${MAX_REPEAT_DEPTH} 层循环`"
+              @click="emitAdd(index, 'repeat')"
+            >
+              + 嵌套循环
+            </button>
           </div>
         </div>
       </template>
@@ -98,6 +105,7 @@
 <script setup>
 import { computed } from "vue";
 import {
+  MAX_REPEAT_DEPTH,
   formatDurationLabel,
   PHASE_LABELS,
   RUN_ROLE_LABELS,
@@ -117,6 +125,11 @@ const props = defineProps({
 const emit = defineEmits(["select", "command"]);
 
 const otherRoles = computed(() => ["warmup", "main", "cooldown"]);
+/**
+ * 本列表里的循环自身处在第 depth+1 层，再嵌一层就是第 depth+2 层：
+ * 超上限时禁用按钮，让用户在点击前就知道结果，而不是保存时才报错。
+ */
+const canNestLoop = computed(() => props.depth + 2 <= MAX_REPEAT_DEPTH);
 
 function isSelected(index) {
   const path = [...props.parentPath, index];
@@ -217,6 +230,7 @@ function changeRepetitions(index, event) {
   cursor: pointer;
 }
 .row-actions button.danger { color: #d54941; border-color: #f3c9c6; }
+.repeat-add button:disabled { color: #9aa2ab; background: #f5f6f5; cursor: not-allowed; }
 .move-select { font-size: 12px; border: 1px solid var(--td-component-stroke); border-radius: 6px; padding: 2px; }
 .repeat-box {
   border: 1px solid var(--td-component-stroke);

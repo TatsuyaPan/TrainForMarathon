@@ -100,6 +100,29 @@ describe("课程结构编辑（纯函数）", () => {
     expect(canMoveSegmentTo(deep, [1, 1], [1, 0], 0)).toBe(true);
   });
 
+  it("插入与替换也不会突破 10 层嵌套", () => {
+    let nested: WorkoutSegment = createRunStep("main");
+    for (let index = 0; index < 10; index += 1) {
+      nested = { kind: "repeat", repetitions: 2, segments: [nested] };
+    }
+    const atLimit = replaceSegment(withPhases(), [1, 0], nested);
+    // 第 10 层循环内部的容器：路径为阶段 + 连续 10 层循环
+    const innermostContainer = [1, ...Array<number>(10).fill(0)];
+    const innermostStep = [...innermostContainer, 0];
+
+    expect(() => insertSegment(atLimit, innermostContainer, 0, createRepeatBlock())).toThrowError(
+      /循环嵌套不能超过 10 层/,
+    );
+    expect(() => replaceSegment(atLimit, innermostStep, createRepeatBlock())).toThrowError(
+      /循环嵌套不能超过 10 层/,
+    );
+    // 同一位置放普通步骤不受影响：深度上限只约束循环
+    expect(insertSegment(atLimit, innermostContainer, 0, createRunStep("main"))).toBeTruthy();
+    expect(replaceSegment(atLimit, innermostStep, createRecoveryStep())).toBeTruthy();
+    // 越界被拒绝时原对象保持不变
+    expect(segmentAt(atLimit, innermostStep)?.kind).toBe("run");
+  });
+
   it("非法路径给出明确错误", () => {
     const workout = withPhases();
     expect(() => removeSegment(workout, [1, 5])).toThrowError(/路径无效/);

@@ -70,6 +70,7 @@ export function insertSegment(
 ): Workout {
   const draft = cloneWorkout(workout);
   const segments = containerFor(draft, parentPath);
+  assertRepeatDepth(parentPath, segment);
   const target = Math.max(0, Math.min(index, segments.length));
   segments.splice(target, 0, deepClone(segment));
   return draft;
@@ -79,6 +80,7 @@ export function insertSegment(
 export function replaceSegment(workout: Workout, path: SegmentPath, segment: WorkoutSegment): Workout {
   const draft = cloneWorkout(workout);
   const segments = containerFor(draft, path.slice(0, -1));
+  assertRepeatDepth(path.slice(0, -1), segment);
   const index = path[path.length - 1];
   if (!segments[index]) throw new Error("路径无效：分部不存在");
   segments[index] = deepClone(segment);
@@ -144,6 +146,20 @@ function maxRepeatDepth(segments: readonly WorkoutSegment[], depth = 1): number 
     }
   }
   return max;
+}
+
+/**
+ * 校验「把 segment 放进 parentPath 容器」后不会超过嵌套上限。
+ *
+ * 插入单个步骤与复制整棵子树共用这一把尺子：容器深度（阶段为 0）加上子树自身深度。
+ * 越界时抛错，由界面把原因显示给用户，不产生非法草稿。
+ */
+function assertRepeatDepth(parentPath: SegmentPath, segment: WorkoutSegment): void {
+  if (segment.kind !== "repeat") return;
+  const containerDepth = Math.max(0, parentPath.length - 1);
+  if (maxRepeatDepth([segment], containerDepth + 1) > MAX_REPEAT_DEPTH) {
+    throw new Error(`循环嵌套不能超过 ${MAX_REPEAT_DEPTH} 层`);
+  }
 }
 
 function workoutRepeatDepth(workout: Workout): number {

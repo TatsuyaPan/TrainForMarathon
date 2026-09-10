@@ -21,6 +21,11 @@ function mainSegments(workout) {
   return workout.phases.find((phase) => phase.role === "main").segments;
 }
 
+/** 生成 depth 层嵌套循环的合法 DSL（上限见规范：最大深度 10） */
+function nestedDsl(depth) {
+  return `GOAL:深嵌套\nMS:${"2x(".repeat(depth)}40min@E${")".repeat(depth)}`;
+}
+
 describe("CourseStructureEditor", () => {
   it("adds a default run step to the main phase", async () => {
     const wrapper = mountEditor("GOAL:有氧基础\nMS:40min@E");
@@ -113,5 +118,29 @@ describe("CourseStructureEditor", () => {
 
     await wrapper.get('[data-testid="remove-phase-WU"]').trigger("click");
     expect(lastWorkout(wrapper).phases.map((phase) => phase.role)).toEqual(["main"]);
+  });
+
+  it("十层嵌套：结构树完整渲染，最内层不再允许继续嵌套", () => {
+    const wrapper = mountEditor(nestedDsl(10));
+
+    // 每一层循环都有自己的卡片，十层边界下页面仍然完整可读
+    expect(wrapper.findAll('[data-testid="editor-repeat"]')).toHaveLength(10);
+
+    const nestButtons = wrapper.findAll("button").filter((entry) => entry.text() === "+ 嵌套循环");
+    expect(nestButtons).toHaveLength(10);
+    // 按钮排在子列表之后，所以文档顺序里最内层在最前：它已到上限，外层仍可继续嵌套
+    expect(nestButtons.at(0).attributes("disabled")).toBeDefined();
+    expect(nestButtons.slice(1).every((button) => !button.attributes("disabled"))).toBe(true);
+  });
+
+  it("九层嵌套仍可继续嵌套，点击后结构变为十层", async () => {
+    const wrapper = mountEditor(nestedDsl(9));
+    const nestButtons = wrapper.findAll("button").filter((entry) => entry.text() === "+ 嵌套循环");
+    await nestButtons.at(0).trigger("click");
+
+    let innermost = mainSegments(lastWorkout(wrapper))[0];
+    for (let level = 0; level < 9; level += 1) innermost = innermost.segments[innermost.segments.length - 1];
+    expect(innermost.kind).toBe("repeat");
+    expect(innermost.segments[0].kind).toBe("run");
   });
 });
