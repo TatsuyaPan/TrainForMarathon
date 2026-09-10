@@ -8,6 +8,7 @@ export * from "./athlete.js";
 export * from "./markdown.js";
 export * from "./dsl/index.js";
 export * from "./vdot.js";
+export * from "./fitness.js";
 export * from "./beginner-table.js";
 export * from "./training-visuals.js";
 export * from "./workflow.js";

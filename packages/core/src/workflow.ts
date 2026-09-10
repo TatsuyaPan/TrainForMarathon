@@ -194,32 +194,6 @@ export interface SetupConfig {
   isBeginner?: boolean;
 }
 
-/** 能力摘要：可被课表直接引用的配速基准 */
-export interface AthleteFitness {
-  mode: "sixSecond" | "vdot";
-  thresholdPaceSecondsPerKm?: number;
-  vdot?: number;
-  raceResults?: RaceResult[];
-  isBeginner?: boolean;
-}
-
-/** 从运动员档案提取能力摘要；无任何能力返回 null */
-export function athleteFitness(athlete: AthleteProfile | null | undefined): AthleteFitness | null {
-  if (!athlete) return null;
-  if (athlete.vdot && athlete.raceResults?.length) {
-    return {
-      mode: "vdot",
-      vdot: athlete.vdot,
-      raceResults: athlete.raceResults,
-      isBeginner: athlete.isBeginner,
-    };
-  }
-  if (athlete.thresholdPaceSecondsPerKm) {
-    return { mode: "sixSecond", thresholdPaceSecondsPerKm: athlete.thresholdPaceSecondsPerKm };
-  }
-  return null;
-}
-
 export interface FitnessInput {
   mode: "sixSecond" | "vdot";
   thresholdPaceSecondsPerKm?: number;

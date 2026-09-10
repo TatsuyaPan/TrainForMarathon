@@ -48,6 +48,14 @@ planned（待完成）
 最小合法课程是 `GOAL:有氧基础` 加一段 `MS:40min@E`：`GOAL` 必填，`TITLE`、`NOTE` 可留空。
 未声明 `WORKOUT/n` 时使用平台当前最新版；显式声明了不支持的版本会直接报错，不猜测、不降级。
 
+## 能力与配速
+
+能力（VDOT / 6 秒规则）的推算与档位文案属于 core：`packages/core/src/fitness.ts` 提供
+`athleteFitness`、`fitnessPaceRows`、`sixSecondPaceRows`、`vdotPaceRows`、`fitnessModeLabel`
+与成绩文案 `formatRaceTime` / `parseRaceTime` / `raceResultsSummary`。
+
+各平台只负责渲染这份数据，不各自拼配速文案，避免同一份能力在不同页面、不同端出现不一致的说法。
+
 ## 开发验证
 
 ```bash

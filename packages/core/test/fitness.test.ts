@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DefaultTrainingDataService } from "../src/workflow.js";
-import {
-  athleteFitness,
-  createSetup,
-  ensureAthlete,
-  getSetupState,
-  updateAthleteFitness,
-} from "../src/workflow.js";
+import { athleteFitness } from "../src/fitness.js";
+import { createSetup, ensureAthlete, getSetupState, updateAthleteFitness } from "../src/workflow.js";
 import type { DataStore } from "../src/workflow.js";
 
 class MemoryStore implements DataStore {
