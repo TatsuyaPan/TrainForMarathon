@@ -64,6 +64,7 @@ npm test        # vitest + happy-dom：单元与组件测试（test/*.test.js）
 
 ```bash
 npm run preview          # 监听 4173，保持运行
+python test/e2e_full_journey.py       # 整系统连贯：配置 → 记录 → 课程库 → 改课表 → 刷新持久化
 python test/e2e_first_run.py          # 首次配置 → 生成课表 → 记录 → 文章
 python test/e2e_session_lifecycle.py  # 一天多训练、完成/跳过、课表编辑与计划同步
 python test/e2e_course_library.py     # 课程库展示、DSL 导入、新建/编辑/复制/删除

@@ -80,6 +80,7 @@ npm --prefix web run build
 npm --prefix web run build
 npm --prefix web run preview      # 保持运行，监听 4173
 python web/test/e2e_first_run.py
+python web/test/e2e_full_journey.py
 python web/test/e2e_session_lifecycle.py
 python web/test/e2e_course_library.py
 python web/test/e2e_course_editor_keyboard.py
