@@ -13,10 +13,21 @@
       <div class="hero-actions">
         <t-button size="small" variant="outline" @click="$router.push('/training')">训练周期</t-button>
         <t-button v-if="week" size="small" variant="outline" @click="$router.push({ path: '/training/week', query: { date } })">本周</t-button>
+        <t-button v-if="week && dayIndex >= 0" data-testid="open-day-adjust" size="small" variant="outline" @click="adjustVisible = true">调整课表</t-button>
         <t-button data-testid="edit-day-workout" size="small" variant="outline" @click="editDayWorkout">编辑课表</t-button>
         <t-button data-testid="show-add-session" size="small" theme="primary" @click="addVisible = true">+ 添加训练</t-button>
       </div>
     </header>
+
+    <DayAdjustDialog
+      v-if="week && day"
+      :plan="plan"
+      :week="week"
+      :day="day"
+      :visible="adjustVisible"
+      @close="adjustVisible = false"
+      @updated="onAdjusted"
+    />
 
     <div v-if="sessions.length === 0" class="empty-day">
       <span class="empty-orbit">0</span>
@@ -97,7 +108,7 @@
               @click="$router.push(recordRoute(session))"
             >{{ session.status === "done" ? "查看或编辑记录" : "改为已完成" }}</t-button>
             <t-button
-              v-if="session.seq > 0"
+              v-if="!isPlanSlotSession(session)"
               :data-remove-session="session.id"
               size="small"
               theme="danger"
@@ -153,11 +164,13 @@ import {
   addExtraSession,
   describeWorkout,
   intensityBarStyle,
+  isPlanSlotSession,
   removeSession,
   skipSession,
 } from "@core";
 import { service } from "../app-context.js";
 import { useTrainingData } from "../composables/useTrainingData.js";
+import DayAdjustDialog from "../components/DayAdjustDialog.vue";
 
 const props = defineProps({ date: { type: String, required: true } });
 const router = useRouter();
@@ -167,10 +180,14 @@ const day = ref(null);
 const week = ref(null);
 const sessions = ref([]);
 const addVisible = ref(false);
+const adjustVisible = ref(false);
 const adding = ref(false);
 const addError = ref("");
 const actionError = ref("");
 const addForm = reactive({ label: "" });
+
+/** 当天在本周里的序号（调整课表按周内序号定位） */
+const dayIndex = computed(() => (week.value ? week.value.days.findIndex((entry) => entry.id === day.value?.id) : -1));
 
 /** 计划里的日期标题是紧凑记号（R、T + R、跑休…），补一份中文类型便于阅读 */
 const dayTypeText = computed(() => {
@@ -259,6 +276,13 @@ function closeAdd() {
   addVisible.value = false;
   addError.value = "";
   addForm.label = "";
+}
+
+/** 课表调整完成：换入的新课表可能让今天变成休息日，也可能改变计划内容 */
+async function onAdjusted(updatedPlan) {
+  plan.value = updatedPlan;
+  await resolveDay();
+  if (day.value) sessions.value = sortSessions(await refreshDaySessions(day.value.id));
 }
 
 async function addSession() {

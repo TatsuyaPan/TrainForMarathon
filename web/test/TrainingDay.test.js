@@ -207,4 +207,26 @@ describe("TrainingDay", () => {
 
     expect(removeSession).not.toHaveBeenCalled();
   });
+
+  it("removes a temporary session that was added on a rest day", async () => {
+    // 休息日加练会占用 seq 0；它属于「临时追加」，必须可以移除
+    const extra = session(0, "planned", { origin: "extra", plannedWorkout: undefined, label: "晚间恢复跑" });
+    const wrapper = await mountDay([extra]);
+    const button = wrapper.find(`[data-remove-session="${extra.id}"]`);
+
+    expect(button.exists()).toBe(true);
+    await button.trigger("click");
+    await flushPromises();
+
+    expect(removeSession).toHaveBeenCalledWith(service, extra);
+  });
+
+  it("opens the plan adjustment dialog from the hero", async () => {
+    const wrapper = await mountDay([session(0, "planned")]);
+    expect(wrapper.find('[data-testid="day-adjust"]').exists()).toBe(false);
+
+    await wrapper.get('[data-testid="open-day-adjust"]').trigger("click");
+
+    expect(wrapper.find('[data-testid="day-adjust"]').exists()).toBe(true);
+  });
 });
