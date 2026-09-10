@@ -37,6 +37,20 @@ def card_titled(page, title: str):
     )
 
 
+def builtin_card(page, index: int = 0):
+    """内置课程分区里的第 index 张卡片（第 1 个分区是「我的课程」）。"""
+    return page.locator("section.library-section").nth(1).locator('[data-testid="course-card"]').nth(index)
+
+
+def dsl_of(card) -> str:
+    return card.get_by_test_id("course-dsl").evaluate("(node) => node.textContent")
+
+
+def without_title(dsl: str) -> str:
+    """忽略 TITLE 行，用于对比两份课程的结构是否一致。"""
+    return "\n".join(line for line in dsl.splitlines() if not line.startswith("TITLE:"))
+
+
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch(headless=True)
     page = browser.new_page(viewport={"width": 1280, "height": 1000})
@@ -109,11 +123,25 @@ with sync_playwright() as playwright:
     expect(edited).to_contain_text("轻松有氧 + 循环")
     shot(page, "library-edited")
 
-    # 10) 复制内置课程 → 标题自动追加（副本）
-    page.locator('[data-testid="course-card"]').first.get_by_test_id("copy-course").click()
+    # 10) 复制内置课程 → 标题自动追加（副本），内置课程本身一个字都不能改
+    source = builtin_card(page)
+    builtin_title = source.locator("strong.card-title").inner_text()
+    source.get_by_test_id("toggle-dsl").click()
+    builtin_dsl = dsl_of(source)
+    source.get_by_test_id("copy-course").click()
     expect(page.get_by_test_id("editor-title")).to_contain_text("（副本）")
     shot(page, "editor-copy")
     page.get_by_test_id("save-course").click()
+
+    untouched = card_titled(page, builtin_title)
+    expect(untouched).to_have_count(1)
+    untouched.get_by_test_id("toggle-dsl").click()
+    assert dsl_of(untouched) == builtin_dsl, "复制课程不应改动内置课程"
+
+    copied = card_titled(page, f"{builtin_title}（副本）")
+    expect(copied).to_have_count(1)
+    copied.get_by_test_id("toggle-dsl").click()
+    assert without_title(dsl_of(copied)) == without_title(builtin_dsl), "副本结构应与内置课程一致"
 
     # 11) 删除自定义课程（二次确认）
     target = card_titled(page, "我的轻松跑 30 分钟")
