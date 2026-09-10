@@ -11,15 +11,10 @@
       </div>
     </div>
 
-    <t-card :bordered="true" style="margin-bottom: 12px">
-      <t-form label-align="top">
-        <t-form-item label="训练目的（必填 · 最高纲领）">
-          <t-input v-model="workout.goal" placeholder="例：赛前减量·T" :maxlength="30" />
-        </t-form-item>
-      </t-form>
+    <WorkoutEditorPanel :model-value="workout" @update:model-value="applyWorkout" />
+
+    <t-card :bordered="true" style="margin-top: 12px">
       <div class="btn-row">
-        <t-button theme="primary" @click="addStep([])">+ 添加步骤</t-button>
-        <t-button @click="addSet([])">+ 添加组</t-button>
         <t-button @click="libraryOpen = !libraryOpen">{{ libraryOpen ? "收起课程库" : "从课程库选择" }}</t-button>
         <t-button @click="customOpen = !customOpen">{{ customOpen ? "收起" : "保存为自定义课程" }}</t-button>
         <t-button variant="outline" @click="dslOpen = !dslOpen">{{ dslOpen ? "收起" : "导出 DSL" }}</t-button>
@@ -66,21 +61,6 @@
       </div>
     </t-card>
 
-    <t-card :bordered="true">
-      <SegmentEditor
-        v-for="(segment, index) in workout.segments"
-        :key="`root.${index}`"
-        :segment="segment"
-        :path="[index]"
-        @move="moveSegment"
-        @copy="copySegment"
-        @remove="removeSegment"
-        @add-step="addStep"
-        @add-set="addSet"
-      />
-      <div v-if="workout.segments.length === 0" class="muted empty">暂无内容——添加步骤、组，或从课程库选择。</div>
-    </t-card>
-
     <t-card v-if="dslOpen" :bordered="true" style="margin-top: 12px">
       <t-textarea v-model="dslText" :autosize="{ minRows: 2, maxRows: 5 }" readonly label="导出（分享文案）" />
       <t-form label-align="top" style="margin-top: 12px">
@@ -112,7 +92,7 @@ import {
   workoutTotals,
 } from "@core";
 import { service } from "../app-context.js";
-import SegmentEditor from "./SegmentEditor.vue";
+import WorkoutEditorPanel from "./WorkoutEditorPanel.vue";
 import { addCustomEntry } from "../stores/custom-library.js";
 
 const props = defineProps({
@@ -152,39 +132,9 @@ function tabStyle(type, active) {
     : { background: `${color}1f`, borderColor: color, color };
 }
 
-function getSegments(path) {
-  let segments = workout.segments;
-  for (const index of path.slice(0, -1)) segments = segments[index].segments;
-  return segments;
-}
-
-function addStep(path) {
-  const segments = path.length === 0 ? workout.segments : getSegments(path);
-  segments.push({ kind: "step", intensity: { type: "pace", zone: "T" }, load: { type: "time", minutes: 5 } });
-}
-
-function addSet(path) {
-  const segments = path.length === 0 ? workout.segments : getSegments(path);
-  segments.push({ kind: "set", repeats: 3, segments: [{ kind: "step", intensity: { type: "pace", zone: "I" }, load: { type: "distance", meters: 800 } }] });
-}
-
-function removeSegment(path) {
-  const segments = getSegments(path);
-  segments.splice(path[path.length - 1], 1);
-}
-
-function copySegment(path) {
-  const segments = getSegments(path);
-  const index = path[path.length - 1];
-  segments.splice(index + 1, 0, structuredClone(segments[index]));
-}
-
-function moveSegment(path, dir) {
-  const segments = getSegments(path);
-  const index = path[path.length - 1];
-  const target = index + dir;
-  if (target < 0 || target >= segments.length) return;
-  [segments[index], segments[target]] = [segments[target], segments[index]];
+function applyWorkout(value) {
+  workout.goal = value.goal;
+  workout.segments = value.segments;
 }
 
 function applyEntry(entry) {
