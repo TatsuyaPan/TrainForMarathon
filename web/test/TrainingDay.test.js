@@ -229,7 +229,7 @@ describe("TrainingDay", () => {
 
     const [, , , input] = addExtraSession.mock.calls[0];
     expect(input.label).not.toBe("");
-    expect(input.plannedWorkout.dslVersion).toBe(1);
+    expect(input.plannedWorkout.dslVersion).toBe(2);
     expect(input.plannedWorkout.goal).toBeTruthy();
     expect(input.plannedWorkout.phases.length).toBeGreaterThan(0);
   });

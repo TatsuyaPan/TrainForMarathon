@@ -54,8 +54,11 @@ workoutDslSpecVersionFile(1);   // "spec/dsl/v1/workout-dsl-v1.md"
 | 版本 | 冻结规范 | 状态 | 解析器 / 序列化器 | 一致性测试 |
 | --- | --- | --- | --- | --- |
 | 1 | [v1/workout-dsl-v1.md](./v1/workout-dsl-v1.md) | 冻结 | `packages/core/src/dsl/v1.ts`：`parseWorkoutDslV1` / `serializeWorkoutV1` | `packages/core/test/workout-dsl.test.ts`、`workout-dsl-version.test.ts`、`dsl-spec-conformance.test.ts` |
+| 2 | [v2/workout-dsl-v2.md](./v2/workout-dsl-v2.md) | 冻结 | `packages/core/src/dsl/v2.ts`：`parseWorkoutDslV2` / `serializeWorkoutV2` | `packages/core/test/workout-dsl-v2.test.ts`、`dsl-spec-conformance.test.ts` |
 
 版本 1 概要：首个正式版本，阶段化 Workout AST、独立恢复/休息步骤、版本声明可省略、`GOAL` 必填。
+
+版本 2 概要：v1 的严格超集，新增 H 记法（H 与 I 同一强度，H 基于时间、I 基于距离；`@H` 只允许时间负荷，序列化规范输出 `@I`），完整支持训练思想正文书写习惯。
 
 ## 新增版本流程
 

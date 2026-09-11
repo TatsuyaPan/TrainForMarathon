@@ -73,7 +73,7 @@ describe("课程卡片的 DSL 写法", () => {
     const wrapper = await mountCardWithDsl();
 
     const dsl = dslText(wrapper);
-    expect(dsl.startsWith("WORKOUT/1")).toBe(true);
+    expect(dsl.startsWith("WORKOUT/2")).toBe(true);
     expect(dsl).toContain("WU:15min@P3:10-3:30/km");
     expect(dsl).toContain("6x(8min@P3:45-4:00/km+90s@jog)");
     expect(dsl).not.toContain("@T");
@@ -86,7 +86,7 @@ describe("课程卡片的 DSL 写法", () => {
 
     await wrapper.get('[data-testid="dsl-flavor-zone"]').trigger("click");
     const zoneDsl = dslText(wrapper);
-    expect(zoneDsl.startsWith("WORKOUT/1")).toBe(true);
+    expect(zoneDsl.startsWith("WORKOUT/2")).toBe(true);
     expect(zoneDsl).toContain("6x(8min@T+90s@jog)");
     expect(zoneDsl).not.toContain("@P");
     expect(wrapper.get('[data-testid="dsl-flavor-zone"]').attributes("aria-pressed")).toBe("true");

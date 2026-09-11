@@ -27,7 +27,7 @@ function withPhases(): Workout {
 describe("课程结构编辑（纯函数）", () => {
   it("默认草稿：MS + 30 分钟 E，训练目的为空", () => {
     const workout = createDefaultWorkout();
-    expect(workout.dslVersion).toBe(1);
+    expect(workout.dslVersion).toBe(2);
     expect(workout.goal).toBe("");
     expect(workout.phases.map((phase) => phase.role)).toEqual(["main"]);
     expect(workout.phases[0].segments[0]).toEqual({

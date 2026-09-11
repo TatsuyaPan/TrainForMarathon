@@ -1,20 +1,20 @@
-"""档位写法 / 配速写法 Workout DSL 的浏览器验收。
+﻿"""æ¡£ä½å†™æ³• / é…é€Ÿå†™æ³• Workout DSL çš„æµè§ˆå™¨éªŒæ”¶ã€‚
 
-同一份含档位的课表可以导出两种写法，两种都落在冻结版本 `WORKOUT/1` 之内：
+åŒä¸€ä»½å«æ¡£ä½çš„è¯¾è¡¨å¯ä»¥å¯¼å‡ºä¸¤ç§å†™æ³•ï¼Œä¸¤ç§éƒ½è½åœ¨å†»ç»“ç‰ˆæœ¬ `WORKOUT/2` ä¹‹å†…ï¼š
 
-- 档位写法：`MS:6x(8min@T+90s@jog)`——规范往返口径，与个人能力无关；
-- 配速写法：`MS:6x(8min@P3:45-4:00/km+90s@jog)`——按当前能力换算出来的派生投影。
+- æ¡£ä½å†™æ³•ï¼š`MS:6x(8min@T+90s@jog)`â€”â€”è§„èŒƒå¾€è¿”å£å¾„ï¼Œä¸Žä¸ªäººèƒ½åŠ›æ— å…³ï¼›
+- é…é€Ÿå†™æ³•ï¼š`MS:6x(8min@P3:45-4:00/km+90s@jog)`â€”â€”æŒ‰å½“å‰èƒ½åŠ›æ¢ç®—å‡ºæ¥çš„æ´¾ç”ŸæŠ•å½±ã€‚
 
-投影是单向的：只有含档位的课表才有两种写法；明确配速（`@P4:45-5:00/km`）本身就是事实，
-不会被反推成 E/M/T/I/R 档位。这里验证四件事：
+æŠ•å½±æ˜¯å•å‘çš„ï¼šåªæœ‰å«æ¡£ä½çš„è¯¾è¡¨æ‰æœ‰ä¸¤ç§å†™æ³•ï¼›æ˜Žç¡®é…é€Ÿï¼ˆ`@P4:45-5:00/km`ï¼‰æœ¬èº«å°±æ˜¯äº‹å®žï¼Œ
+ä¸ä¼šè¢«åæŽ¨æˆ E/M/T/I/R æ¡£ä½ã€‚è¿™é‡ŒéªŒè¯å››ä»¶äº‹ï¼š
 
-1. 含档位的课程卡片能在两种写法之间切换，且版本行始终是 `WORKOUT/1`；
-2. 配速写法按当前能力换算（阈值 4:00/km → T 3:45-4:00/km、E 3:10-3:30/km）；
-3. 只有明确配速的课表没有写法开关，也不会被换算成档位；
-4. 全流程没有任何控制台错误。
+1. å«æ¡£ä½çš„è¯¾ç¨‹å¡ç‰‡èƒ½åœ¨ä¸¤ç§å†™æ³•ä¹‹é—´åˆ‡æ¢ï¼Œä¸”ç‰ˆæœ¬è¡Œå§‹ç»ˆæ˜¯ `WORKOUT/2`ï¼›
+2. é…é€Ÿå†™æ³•æŒ‰å½“å‰èƒ½åŠ›æ¢ç®—ï¼ˆé˜ˆå€¼ 4:00/km â†’ T 3:45-4:00/kmã€E 3:10-3:30/kmï¼‰ï¼›
+3. åªæœ‰æ˜Žç¡®é…é€Ÿçš„è¯¾è¡¨æ²¡æœ‰å†™æ³•å¼€å…³ï¼Œä¹Ÿä¸ä¼šè¢«æ¢ç®—æˆæ¡£ä½ï¼›
+4. å…¨æµç¨‹æ²¡æœ‰ä»»ä½•æŽ§åˆ¶å°é”™è¯¯ã€‚
 
-前置：core/web 目录先 `npm run build`，再 `npm run preview`（默认 4173）。
-运行：`python test/e2e_dsl_flavors.py`
+å‰ç½®ï¼šcore/web ç›®å½•å…ˆ `npm run build`ï¼Œå† `npm run preview`ï¼ˆé»˜è®¤ 4173ï¼‰ã€‚
+è¿è¡Œï¼š`python test/e2e_dsl_flavors.py`
 """
 import json
 import re
@@ -26,22 +26,22 @@ from playwright.sync_api import expect, sync_playwright
 BASE_URL = "http://127.0.0.1:4173"
 SHOTS = Path(__file__).resolve().parent.parent / "test-results"
 
-# 含档位的课表：阈值 4:00/km 的能力下 T = 3:45-4:00/km、E = 3:10-3:30/km
+# å«æ¡£ä½çš„è¯¾è¡¨ï¼šé˜ˆå€¼ 4:00/km çš„èƒ½åŠ›ä¸‹ T = 3:45-4:00/kmã€E = 3:10-3:30/km
 ZONE_DSL = "\n".join(
     [
-        "TITLE:写法校验课",
-        "GOAL:乳酸阈能力",
+        "TITLE:å†™æ³•æ ¡éªŒè¯¾",
+        "GOAL:ä¹³é…¸é˜ˆèƒ½åŠ›",
         "WU:15min@E",
         "MS:6x(8min@T+90s@jog)",
         "CD:10min@E",
     ]
 )
 
-# 只有明确配速的课表：一个档位都没有，因此不该出现写法开关
+# åªæœ‰æ˜Žç¡®é…é€Ÿçš„è¯¾è¡¨ï¼šä¸€ä¸ªæ¡£ä½éƒ½æ²¡æœ‰ï¼Œå› æ­¤ä¸è¯¥å‡ºçŽ°å†™æ³•å¼€å…³
 PACE_ONLY_DSL = "\n".join(
     [
-        "TITLE:配速写法课",
-        "GOAL:马拉松专项适应",
+        "TITLE:é…é€Ÿå†™æ³•è¯¾",
+        "GOAL:é©¬æ‹‰æ¾ä¸“é¡¹é€‚åº”",
         "WU:15min@P3:10-3:30/km",
         "MS:6x(8min@P3:45-4:00/km+90s@jog)",
         "CD:10min@P3:10-3:30/km",
@@ -82,8 +82,8 @@ def dsl_of(card) -> str:
 
 
 def wait_for_fitness(page) -> None:
-    """等展示口径提示出现，确认能力已经从存储读出来（配速写法依赖它）。"""
-    expect(page.get_by_test_id("display-mode-hint")).to_contain_text("配速")
+    """ç­‰å±•ç¤ºå£å¾„æç¤ºå‡ºçŽ°ï¼Œç¡®è®¤èƒ½åŠ›å·²ç»ä»Žå­˜å‚¨è¯»å‡ºæ¥ï¼ˆé…é€Ÿå†™æ³•ä¾èµ–å®ƒï¼‰ã€‚"""
+    expect(page.get_by_test_id("display-mode-hint")).to_contain_text("é…é€Ÿ")
 
 
 with sync_playwright() as playwright:
@@ -98,65 +98,65 @@ with sync_playwright() as playwright:
     page.wait_for_load_state("networkidle")
     wait_for_fitness(page)
 
-    # 1) 导入含档位的课表：摘要正确，且因为是纯档位课表，不出现配速写法说明
+    # 1) å¯¼å…¥å«æ¡£ä½çš„è¯¾è¡¨ï¼šæ‘˜è¦æ­£ç¡®ï¼Œä¸”å› ä¸ºæ˜¯çº¯æ¡£ä½è¯¾è¡¨ï¼Œä¸å‡ºçŽ°é…é€Ÿå†™æ³•è¯´æ˜Ž
     page.get_by_test_id("open-import").click()
     page.get_by_test_id("import-textarea").fill(ZONE_DSL)
-    expect(page.get_by_test_id("import-summary")).to_contain_text("1 个循环")
+    expect(page.get_by_test_id("import-summary")).to_contain_text("1 ä¸ªå¾ªçŽ¯")
     expect(page.get_by_test_id("import-pace-note")).to_have_count(0)
     shot(page, "import-zone")
     page.get_by_test_id("import-confirm").click()
-    expect(page.get_by_test_id("editor-title")).to_have_text("写法校验课")
+    expect(page.get_by_test_id("editor-title")).to_have_text("å†™æ³•æ ¡éªŒè¯¾")
     page.get_by_test_id("course-category").select_option("T")
     page.get_by_test_id("save-course").click()
 
-    zone_card = card_titled(page, "写法校验课")
+    zone_card = card_titled(page, "å†™æ³•æ ¡éªŒè¯¾")
     expect(zone_card).to_have_count(1)
 
-    # 2) 展开 DSL：默认跟随全局展示口径（配速），档位被换算成明确配速
+    # 2) å±•å¼€ DSLï¼šé»˜è®¤è·Ÿéšå…¨å±€å±•ç¤ºå£å¾„ï¼ˆé…é€Ÿï¼‰ï¼Œæ¡£ä½è¢«æ¢ç®—æˆæ˜Žç¡®é…é€Ÿ
     zone_card.get_by_test_id("toggle-dsl").click()
     pace_dsl = dsl_of(zone_card)
-    assert pace_dsl.startswith("WORKOUT/1"), pace_dsl
+    assert pace_dsl.startswith("WORKOUT/2"), pace_dsl
     assert "8min@P3:45-4:00/km" in pace_dsl, pace_dsl
     assert "15min@P3:10-3:30/km" in pace_dsl, pace_dsl
     assert "@T" not in pace_dsl, pace_dsl
     assert "WORKOUT/2" not in pace_dsl, pace_dsl
     shot(page, "card-pace-dsl")
 
-    # 3) 切到强度版：只剩档位，没有任何配速数值
+    # 3) åˆ‡åˆ°å¼ºåº¦ç‰ˆï¼šåªå‰©æ¡£ä½ï¼Œæ²¡æœ‰ä»»ä½•é…é€Ÿæ•°å€¼
     zone_card.get_by_test_id("dsl-flavor-zone").click()
     exported_zone = dsl_of(zone_card)
-    assert exported_zone.startswith("WORKOUT/1"), exported_zone
+    assert exported_zone.startswith("WORKOUT/2"), exported_zone
     assert "6x(8min@T+90s@jog)" in exported_zone, exported_zone
     assert "@P" not in exported_zone, exported_zone
     shot(page, "card-zone-dsl")
 
-    # 4) 切回配速版：文本与第 2 步一致，说明换算是确定性的
+    # 4) åˆ‡å›žé…é€Ÿç‰ˆï¼šæ–‡æœ¬ä¸Žç¬¬ 2 æ­¥ä¸€è‡´ï¼Œè¯´æ˜Žæ¢ç®—æ˜¯ç¡®å®šæ€§çš„
     zone_card.get_by_test_id("dsl-flavor-pace").click()
     assert dsl_of(zone_card) == pace_dsl
 
-    # 5) 导入只有明确配速的课表：说明文字点明不会被反推成档位
+    # 5) å¯¼å…¥åªæœ‰æ˜Žç¡®é…é€Ÿçš„è¯¾è¡¨ï¼šè¯´æ˜Žæ–‡å­—ç‚¹æ˜Žä¸ä¼šè¢«åæŽ¨æˆæ¡£ä½
     page.get_by_test_id("open-import").click()
     page.get_by_test_id("import-textarea").fill(PACE_ONLY_DSL)
-    expect(page.get_by_test_id("import-pace-note")).to_contain_text("不会被换算成档位")
+    expect(page.get_by_test_id("import-pace-note")).to_contain_text("ä¸ä¼šè¢«æ¢ç®—æˆæ¡£ä½")
     shot(page, "import-pace-only")
     page.get_by_test_id("import-confirm").click()
     page.get_by_test_id("course-category").select_option("M")
     page.get_by_test_id("save-course").click()
 
-    pace_card = card_titled(page, "配速写法课")
+    pace_card = card_titled(page, "é…é€Ÿå†™æ³•è¯¾")
     expect(pace_card).to_have_count(1)
     pace_card.get_by_test_id("toggle-dsl").click()
 
-    # 6) 课表数据里只有明确配速，没有任何 daniels 档位
+    # 6) è¯¾è¡¨æ•°æ®é‡Œåªæœ‰æ˜Žç¡®é…é€Ÿï¼Œæ²¡æœ‰ä»»ä½• daniels æ¡£ä½
     stored = page.evaluate(
         "JSON.parse(localStorage.getItem('tfm:course-library:v1') || '[]')"
         ".map((course) => JSON.stringify(course.workout))"
     )
-    pace_only_workout = next(item for item in stored if "配速写法课" in item)
+    pace_only_workout = next(item for item in stored if "é…é€Ÿå†™æ³•è¯¾" in item)
     assert "pace-range" in pace_only_workout, pace_only_workout
     assert "daniels" not in pace_only_workout, pace_only_workout
 
-    # 7) 这份课表没有写法开关，DSL 原样保留明确配速
+    # 7) è¿™ä»½è¯¾è¡¨æ²¡æœ‰å†™æ³•å¼€å…³ï¼ŒDSL åŽŸæ ·ä¿ç•™æ˜Žç¡®é…é€Ÿ
     expect(pace_card.get_by_test_id("dsl-single-flavor")).to_be_visible()
     expect(pace_card.get_by_test_id("dsl-flavor-zone")).to_have_count(0)
     expect(pace_card.get_by_test_id("dsl-flavor-pace")).to_have_count(0)
@@ -167,7 +167,7 @@ with sync_playwright() as playwright:
 
     assert not console_errors, console_errors
 
-    # 8) 换一份能力（阈值 4:20/km）：同一份含档位课表换算出不同的配速写法
+    # 8) æ¢ä¸€ä»½èƒ½åŠ›ï¼ˆé˜ˆå€¼ 4:20/kmï¼‰ï¼šåŒä¸€ä»½å«æ¡£ä½è¯¾è¡¨æ¢ç®—å‡ºä¸åŒçš„é…é€Ÿå†™æ³•
     other_page = browser.new_page(viewport={"width": 1280, "height": 1000})
     other_errors = []
     other_page.on("console", lambda message: other_errors.append(message.text) if message.type == "error" else None)
@@ -181,7 +181,7 @@ with sync_playwright() as playwright:
     other_page.get_by_test_id("import-confirm").click()
     other_page.get_by_test_id("save-course").click()
 
-    other_card = card_titled(other_page, "写法校验课")
+    other_card = card_titled(other_page, "å†™æ³•æ ¡éªŒè¯¾")
     other_card.get_by_test_id("toggle-dsl").click()
     other_pace_dsl = dsl_of(other_card)
     assert "@P" in other_pace_dsl, other_pace_dsl

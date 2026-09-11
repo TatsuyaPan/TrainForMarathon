@@ -53,7 +53,7 @@ describe("训练日内容生成器", () => {
 
   it("生成内容全部可导出并统计", () => {
     const workout = buildDayWorkout(["T", "I"], context(100, 100))!;
-    expect(serializeWorkout(workout)).toContain("WORKOUT/1");
+    expect(serializeWorkout(workout)).toContain("WORKOUT/2");
     const planned = workoutPlannedTotals(workout);
     expect(planned.durationMinutes + planned.distanceKm).toBeGreaterThan(0);
   });

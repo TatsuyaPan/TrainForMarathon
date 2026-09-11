@@ -80,7 +80,7 @@ describe("配速写法（档位 → 明确配速）", () => {
   it("导出配速写法：仍是同一个冻结版本的文本", () => {
     const workout = parseWorkoutDsl(ZONE_DSL);
     const paceDsl = serializeWorkout(workout, { targetMode: "pace", paces: PACES });
-    expect(paceDsl.startsWith("WORKOUT/1")).toBe(true);
+    expect(paceDsl.startsWith("WORKOUT/2")).toBe(true);
     expect(paceDsl).toContain("WU:15min@P3:10-3:30/km");
     expect(paceDsl).toContain("6x(8min@P3:45-4:00/km@RPE8+90s@jog)");
     expect(paceDsl).not.toContain("@T");

@@ -15,10 +15,11 @@ describe("DSL 版本分发", () => {
   it("声明版本时按版本选择解析器", () => {
     expect(detectWorkoutDslVersion("WORKOUT/1\nGOAL:x\nMS:10min@E")).toBe(1);
     expect(detectWorkoutDslVersion("GOAL:x\nMS:10min@E")).toBeUndefined();
-    expect(CURRENT_WORKOUT_DSL_VERSION).toBe(1);
-    expect(SUPPORTED_WORKOUT_DSL_VERSIONS).toEqual([1]);
+    expect(CURRENT_WORKOUT_DSL_VERSION).toBe(2);
+    expect(SUPPORTED_WORKOUT_DSL_VERSIONS).toEqual([1, 2]);
     expect(isWorkoutDslVersionSupported(1)).toBe(true);
-    expect(isWorkoutDslVersionSupported(2)).toBe(false);
+    expect(isWorkoutDslVersionSupported(2)).toBe(true);
+    expect(isWorkoutDslVersionSupported(3)).toBe(false);
   });
 
   it("未声明版本时使用当前最新版解析器", () => {
@@ -32,13 +33,13 @@ describe("DSL 版本分发", () => {
   });
 
   it("不支持的显式版本抛出版本错误且不回退", () => {
-    expect(() => parseWorkoutDsl("WORKOUT/2\nGOAL:x\nMS:10min@E")).toThrowError(WorkoutDslError);
+    expect(() => parseWorkoutDsl("WORKOUT/3\nGOAL:x\nMS:10min@E")).toThrowError(WorkoutDslError);
     try {
-      parseWorkoutDsl("WORKOUT/2\nGOAL:x\nMS:10min@E");
+      parseWorkoutDsl("WORKOUT/3\nGOAL:x\nMS:10min@E");
     } catch (error) {
       const dslError = error as WorkoutDslError;
       expect(dslError.code).toBe("unsupported-version");
-      expect(dslError.message).toContain("不支持的课程 DSL 版本 2");
+      expect(dslError.message).toContain("不支持的课程 DSL 版本 3");
     }
     expect(() => parseWorkoutDslV1("WORKOUT/2\nGOAL:x\nMS:10min@E")).toThrowError(/不支持版本 2/);
   });
@@ -51,8 +52,8 @@ describe("DSL 版本分发", () => {
   it("序列化按 AST 中的版本分发", () => {
     const workout = createDefaultWorkout();
     workout.goal = "有氧基础";
-    expect(serializeWorkout(workout)).toContain("WORKOUT/1");
-    expect(serializeWorkoutV1(workout, { version: false })).toBe("GOAL:有氧基础\nMS:30min@E");
-    expect(() => serializeWorkout({ ...workout, dslVersion: 2 })).toThrowError(/不支持的课程 DSL 版本 2/);
+    expect(serializeWorkout(workout)).toContain("WORKOUT/2");
+    expect(serializeWorkoutV1({ ...workout, dslVersion: 1 }, { version: false })).toBe("GOAL:有氧基础\nMS:30min@E");
+    expect(() => serializeWorkout({ ...workout, dslVersion: 3 })).toThrowError(/不支持的课程 DSL 版本 3/);
   });
 });

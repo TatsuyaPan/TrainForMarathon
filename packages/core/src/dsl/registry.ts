@@ -15,15 +15,23 @@ import {
   serializeWorkoutV1,
   type SerializeWorkoutOptions,
 } from "./v1.js";
+import {
+  WORKOUT_DSL_V2_VERSION,
+  parseWorkoutDslV2,
+  serializeWorkoutV2,
+} from "./v2.js";
 import { projectWorkoutToPace } from "./pace-projection.js";
 import type { TargetDisplayMode } from "./presentation.js";
 
 /** 平台当前支持的最新版解析器版本 */
-export const CURRENT_WORKOUT_DSL_VERSION = WORKOUT_DSL_V1_VERSION;
+export const CURRENT_WORKOUT_DSL_VERSION = WORKOUT_DSL_V2_VERSION;
 
-export const SUPPORTED_WORKOUT_DSL_VERSIONS: readonly number[] = [WORKOUT_DSL_V1_VERSION];
+export const SUPPORTED_WORKOUT_DSL_VERSIONS: readonly number[] = [
+  WORKOUT_DSL_V1_VERSION,
+  WORKOUT_DSL_V2_VERSION,
+];
 
-export type WorkoutDslVersion = typeof WORKOUT_DSL_V1_VERSION;
+export type WorkoutDslVersion = typeof WORKOUT_DSL_V1_VERSION | typeof WORKOUT_DSL_V2_VERSION;
 
 export type WorkoutDslParser = (text: string) => Workout;
 export type WorkoutDslSerializer = (workout: Workout, options?: SerializeWorkoutOptions) => string;
@@ -31,11 +39,13 @@ export type WorkoutDslSerializer = (workout: Workout, options?: SerializeWorkout
 /** 版本 → 解析器。新增版本时在此注册。 */
 export const WORKOUT_DSL_PARSERS: Readonly<Record<number, WorkoutDslParser>> = {
   [WORKOUT_DSL_V1_VERSION]: parseWorkoutDslV1,
+  [WORKOUT_DSL_V2_VERSION]: parseWorkoutDslV2,
 };
 
 /** 版本 → 序列化器 */
 export const WORKOUT_DSL_SERIALIZERS: Readonly<Record<number, WorkoutDslSerializer>> = {
   [WORKOUT_DSL_V1_VERSION]: serializeWorkoutV1,
+  [WORKOUT_DSL_V2_VERSION]: serializeWorkoutV2,
 };
 
 export function isWorkoutDslVersionSupported(version: number): boolean {

@@ -18,7 +18,7 @@ describe("Workout DSL v1", () => {
   it("解析最小合法课程（GOAL + MS）", () => {
     const workout = parseWorkoutDsl("GOAL:有氧基础\nMS:40min@E");
     expect(workout).toEqual({
-      dslVersion: 1,
+      dslVersion: 2,
       goal: "有氧基础",
       phases: [
         {
@@ -109,7 +109,7 @@ describe("Workout DSL v1", () => {
     const round = parseWorkoutDsl(serializeWorkout(workout));
     expect(round).toEqual(workout);
     expect(round.phases[0].segments[0]).toMatchObject({ note: '轻松"热身"' });
-    expect(serializeWorkout(workout)).toContain("WORKOUT/1");
+    expect(serializeWorkout(workout)).toContain("WORKOUT/2");
     expect(serializeWorkout(workout, { version: false }).startsWith("GOAL:")).toBe(true);
   });
 
@@ -122,7 +122,7 @@ describe("Workout DSL v1", () => {
 
   it("错误带行列、错误码与修复提示", () => {
     try {
-      parseWorkoutDsl("GOAL:x\nMS:8min@H");
+      parseWorkoutDsl("GOAL:x\nMS:8min@X");
       throw new Error("应当失败");
     } catch (error) {
       expect(error).toBeInstanceOf(WorkoutDslError);

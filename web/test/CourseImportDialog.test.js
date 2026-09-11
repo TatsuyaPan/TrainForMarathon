@@ -36,7 +36,7 @@ describe("CourseImportDialog", () => {
 
   it("shows a line/column error and persists nothing when parsing fails", async () => {
     const wrapper = mountDialog();
-    await wrapper.get('[data-testid="import-textarea"]').setValue("GOAL:有氧基础\nMS:40min@H");
+    await wrapper.get('[data-testid="import-textarea"]').setValue("GOAL:有氧基础\nMS:40min@X");
     await wrapper.get('[data-testid="import-confirm"]').trigger("click");
 
     const error = wrapper.get('[data-testid="import-error"]').text();
