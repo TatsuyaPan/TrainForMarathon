@@ -5,7 +5,7 @@
 有时间精力的朋友，也非常推荐去看原书及up主的原始视频及文章。
 
 - 《丹尼尔斯经典跑步训练法》
-![](../../image/Daniels'%20Running%20Formula.png)
+![](../../image/Daniels-Running-Formula.png)
 
 
 
