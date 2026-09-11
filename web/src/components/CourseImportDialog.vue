@@ -7,6 +7,11 @@
       </header>
 
       <p class="muted">粘贴完整 Workout DSL。一次只接受一份课程；缺少版本声明时使用当前最新版解析器。</p>
+      <p class="muted">
+        档位写法与配速写法都接受：<code>MS:6x(8min@T+90s@jog)</code> 与
+        <code>MS:6x(8min@P3:45-4:00/km+90s@jog)</code>。
+        明确配速原样导入，不会被换算成 E/M/T/I/R 档位。
+      </p>
 
       <textarea
         ref="inputRef"
@@ -25,6 +30,7 @@
         <strong>{{ summaryTitle }}</strong>
         <span class="muted">{{ summaryLine }}</span>
         <p v-if="parsed.note" class="muted">备注：{{ parsed.note }}</p>
+        <p v-if="paceNote" class="muted" data-testid="import-pace-note">{{ paceNote }}</p>
       </div>
 
       <footer class="import-actions">
@@ -44,7 +50,12 @@
 
 <script setup>
 import { computed, ref, watch } from "vue";
-import { createWorkoutPresentation, parseWorkoutDsl } from "@core";
+import {
+  createWorkoutPresentation,
+  parseWorkoutDsl,
+  workoutHasExplicitPace,
+  workoutHasIntensity,
+} from "@core";
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -66,6 +77,20 @@ const summaryLine = computed(() => {
   if (view.headline.durationLabel) parts.push(`已知时间 ${view.headline.durationLabel}`);
   if (view.headline.distanceLabel) parts.push(`已知距离 ${view.headline.distanceLabel}`);
   return parts.join(" · ");
+});
+
+/**
+ * 写法说明：明确配速原样导入，不会被反推成档位。
+ * 含档位的课表可以另外导出配速写法（见课程卡片的写法开关）。
+ */
+const paceNote = computed(() => {
+  const workout = parsed.value;
+  if (!workout) return "";
+  const hasPace = workoutHasExplicitPace(workout);
+  const hasZone = workoutHasIntensity(workout);
+  if (hasPace && hasZone) return "同时含档位与明确配速：档位可以导出成配速写法，明确配速始终保持原样。";
+  if (hasPace) return "配速写法：明确配速原样导入，不会被换算成档位。";
+  return "";
 });
 
 watch(
@@ -139,6 +164,14 @@ function confirm() {
 }
 .import-head { display: flex; align-items: center; justify-content: space-between; }
 .import-head h3 { margin: 0; font-size: 17px; }
+.import-dialog code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: #f2f4f2;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  word-break: break-all;
+}
 .import-head .close {
   width: 28px;
   height: 28px;

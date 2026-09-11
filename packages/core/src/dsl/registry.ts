@@ -7,6 +7,7 @@
  * - 平台可以绕过本入口，直接调用 `parseWorkoutDslV1` 等版本明确的解析器。
  */
 import type { Workout } from "../domain.js";
+import type { TrainingPaces } from "../pace.js";
 import { WorkoutDslError } from "./errors.js";
 import {
   WORKOUT_DSL_V1_VERSION,
@@ -14,6 +15,8 @@ import {
   serializeWorkoutV1,
   type SerializeWorkoutOptions,
 } from "./v1.js";
+import { projectWorkoutToPace } from "./pace-projection.js";
+import type { TargetDisplayMode } from "./presentation.js";
 
 /** 平台当前支持的最新版解析器版本 */
 export const CURRENT_WORKOUT_DSL_VERSION = WORKOUT_DSL_V1_VERSION;
@@ -90,16 +93,34 @@ export function parseWorkoutDsl(text: string, options: ParseWorkoutDslOptions = 
   return parser(source);
 }
 
-/** 序列化 Workout：按 AST 中的 dslVersion 分发给对应序列化器。 */
-export function serializeWorkout(workout: Workout, options: SerializeWorkoutOptions = {}): string {
-  const version = workout?.dslVersion;
+export interface SerializeWorkoutEntryOptions extends SerializeWorkoutOptions {
+  /**
+   * 写法：`zone`（默认，档位写法，规范往返口径）或 `pace`（配速写法，派生导出）。
+   * 配速写法把档位换算成明确配速；明确配速、心率、RPE 步骤保持原样。
+   */
+  targetMode?: TargetDisplayMode;
+  /** 配速写法需要的当前能力档位；缺失或换算越界时该步骤保持档位写法 */
+  paces?: TrainingPaces | null;
+}
+
+/**
+ * 序列化 Workout：按 AST 中的 dslVersion 分发给对应序列化器。
+ *
+ * `targetMode: "pace"` 是派生写法：先按 `paces` 把档位投影成明确配速
+ * （见 pace-projection.ts），再交给同一版本的序列化器。
+ * 投影是单向的——档位能变成配速，明确配速不会变成档位。
+ */
+export function serializeWorkout(workout: Workout, options: SerializeWorkoutEntryOptions = {}): string {
+  const { targetMode, paces, ...serializeOptions } = options;
+  const target = targetMode === "pace" && workout ? projectWorkoutToPace(workout, paces) : workout;
+  const version = target?.dslVersion;
   const serializer = version === undefined ? undefined : WORKOUT_DSL_SERIALIZERS[version];
   if (!serializer) {
     throw new Error(
       `不支持的课程 DSL 版本 ${String(version)}；当前支持：${SUPPORTED_WORKOUT_DSL_VERSIONS.join("、")}`,
     );
   }
-  return serializer(workout, options);
+  return serializer(target, serializeOptions);
 }
 
 /**

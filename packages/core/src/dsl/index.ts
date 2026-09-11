@@ -2,6 +2,7 @@
 export * from "./errors.js";
 export * from "./workout.js";
 export * from "./v1.js";
+export * from "./pace-projection.js";
 export * from "./registry.js";
 export * from "./edit.js";
 export * from "./presentation.js";

@@ -74,4 +74,36 @@ describe("CourseImportDialog", () => {
 
     expect(wrapper.emitted("submit")[0][0].dslVersion).toBe(1);
   });
+
+  it("imports an explicit pace range as pace and never guesses a zone", async () => {
+    const wrapper = mountDialog();
+    await wrapper.get('[data-testid="import-textarea"]').setValue("GOAL:马拉松专项适应\nMS:12km@P4:45-5:00/km");
+
+    expect(wrapper.get('[data-testid="import-pace-note"]').text()).toContain("不会被换算成档位");
+    await wrapper.get('[data-testid="import-confirm"]').trigger("click");
+
+    const submitted = wrapper.emitted("submit")[0][0];
+    expect(submitted.phases[0].segments[0].target).toEqual({
+      type: "pace-range",
+      fastSecondsPerKm: 285,
+      slowSecondsPerKm: 300,
+    });
+  });
+
+  it("keeps a mixed course unchanged and explains that only zones can become paces", async () => {
+    const wrapper = mountDialog();
+    await wrapper
+      .get('[data-testid="import-textarea"]')
+      .setValue("GOAL:I 与阈值混合\nWU:15min@E\nMS:5x(3min@I+2min@jog)+5min@P4:45-5:00/km");
+
+    expect(wrapper.get('[data-testid="import-pace-note"]').text()).toContain("档位可以导出成配速写法");
+    expect(wrapper.find('[data-testid="import-error"]').exists()).toBe(false);
+  });
+
+  it("shows no writing-style note for a zone-only course", async () => {
+    const wrapper = mountDialog();
+    await wrapper.get('[data-testid="import-textarea"]').setValue("GOAL:乳酸阈能力\nMS:20min@T");
+
+    expect(wrapper.find('[data-testid="import-pace-note"]').exists()).toBe(false);
+  });
 });

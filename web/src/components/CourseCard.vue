@@ -50,9 +50,30 @@
     </section>
 
     <section v-if="dslOpen" class="card-section">
+      <div class="dsl-flavors">
+        <template v-if="hasIntensity">
+          <span class="muted">写法</span>
+          <div class="flavor-group" role="group" aria-label="DSL 写法">
+            <button
+              v-for="option in FLAVORS"
+              :key="option.value"
+              type="button"
+              class="flavor-option"
+              :class="{ active: flavor === option.value }"
+              :aria-pressed="flavor === option.value"
+              :data-testid="`dsl-flavor-${option.value}`"
+              @click="setFlavor(option.value)"
+            >
+              {{ option.label }}
+            </button>
+          </div>
+          <span class="muted flavor-hint">{{ flavorHint }}</span>
+        </template>
+        <span v-else class="muted flavor-hint" data-testid="dsl-single-flavor">{{ singleFlavorHint }}</span>
+      </div>
       <div class="dsl-block">
         <pre data-testid="course-dsl">{{ dsl }}</pre>
-        <t-button size="small" variant="outline" @click="copyDsl">复制 DSL</t-button>
+        <t-button size="small" variant="outline" data-testid="copy-dsl" @click="copyDsl">复制 DSL</t-button>
       </div>
       <p v-if="copyHint" class="muted">{{ copyHint }}</p>
     </section>
@@ -66,6 +87,7 @@ import {
   LIBRARY_CATEGORY_LABELS,
   createWorkoutPresentation,
   serializeWorkout,
+  workoutZones,
 } from "@core";
 import StructurePreview from "./StructurePreview.vue";
 import WorkoutStructure from "./WorkoutStructure.vue";
@@ -81,18 +103,44 @@ const dslOpen = ref(false);
 const copyHint = ref("");
 
 // 展示口径（强度 ↔ 配速）是全局偏好：卡片只读，不在这里放开关
-const { presentationContext } = usePaceDisplay();
+const { mode, paces, hasPaces, presentationContext } = usePaceDisplay();
+
+/** DSL 的两种写法：强度版（档位写法，规范口径）与配速版（按当前能力派生出的明确配速） */
+const FLAVORS = [
+  { value: "zone", label: "强度版" },
+  { value: "pace", label: "配速版" },
+];
+// 默认跟随全局展示口径：看到什么口径，就复制什么写法
+const flavor = ref(mode.value === "pace" ? "pace" : "zone");
+
+/**
+ * 只有含强度档位的课表才有两种写法：档位能换算成配速，反过来不行。
+ * 一份只有明确配速（`@P4:45-5:00/km`）、心率或 RPE 的课表不会被反推成 E/M/T/I/R。
+ */
+const hasIntensity = computed(() => workoutZones(props.course.workout).length > 0);
+const singleFlavorHint = "这份课表不含强度档位（E/M/T/I/R），只有一种写法：明确目标不会被换算成档位";
 
 const presentation = computed(() => createWorkoutPresentation(props.course.workout, presentationContext.value));
 const categoryLabel = computed(() =>
   props.course.category === "mixed" ? "混合" : LIBRARY_CATEGORY_LABELS[props.course.category] ?? props.course.category);
 const categoryColor = computed(() => INTENSITY_COLORS[props.course.category] ?? "#5b6b7c");
+/** 实际是否按配速写法导出：没有档位或没有能力时都退回档位写法 */
+const paceFlavor = computed(() => hasIntensity.value && flavor.value === "pace" && hasPaces.value);
 const dsl = computed(() => {
   try {
-    return serializeWorkout(props.course.workout);
+    return serializeWorkout(
+      props.course.workout,
+      paceFlavor.value ? { targetMode: "pace", paces: paces.value } : {},
+    );
   } catch (error) {
     return `（无法导出 DSL：${error instanceof Error ? error.message : "内容不完整"}）`;
   }
+});
+const flavorHint = computed(() => {
+  if (flavor.value === "zone") return "档位写法：与个人能力无关，长期交换用这份";
+  return paceFlavor.value
+    ? "按当前能力把档位换算成明确配速（E、M 为估算）；导入后是明确配速"
+    : "尚未建立能力，暂按档位写法导出";
 });
 const badges = computed(() => {
   const headline = presentation.value.headline;
@@ -110,10 +158,15 @@ async function copyDsl() {
   copyHint.value = "";
   try {
     await navigator.clipboard.writeText(dsl.value);
-    copyHint.value = "DSL 已复制";
+    copyHint.value = `${paceFlavor.value ? "配速版" : "强度版"} DSL 已复制`;
   } catch {
     copyHint.value = "复制失败，请手动选中上面的文本";
   }
+}
+
+function setFlavor(next) {
+  flavor.value = next;
+  copyHint.value = "";
 }
 </script>
 
@@ -165,6 +218,31 @@ async function copyDsl() {
   padding: 1px 7px;
 }
 .dsl-block { display: grid; gap: 8px; }
+.dsl-flavors { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.flavor-group {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--td-component-stroke);
+  border-radius: 999px;
+  background: #f2f4f2;
+}
+.flavor-option {
+  padding: 2px 12px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: #35424f;
+  font-size: 12px;
+  cursor: pointer;
+}
+.flavor-option.active {
+  background: #fff;
+  color: #357a52;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(24, 63, 43, 0.16);
+}
+.flavor-option:focus-visible { outline: 2px solid #357a52; outline-offset: 2px; }
+.flavor-hint { font-size: 12px; }
 .dsl-block pre {
   margin: 0;
   padding: 10px;
