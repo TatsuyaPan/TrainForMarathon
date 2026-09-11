@@ -36,6 +36,8 @@ export interface LibraryCourse {
   weeklyKmHint?: string;
   /** 来源说明：内置课程为书名，自定义课程为「自定义」或「复制自 …」 */
   source: string;
+  /** 类型化出处：训练思想文章 id（如 training-types/threshold）；课程卡可直达原文 */
+  sourceContentId?: string;
   workout: Workout;
   createdAt?: string;
   updatedAt?: string;
@@ -112,6 +114,7 @@ export interface CreateLibraryCourseInput {
   tags?: DanielsZone[];
   weeklyKmHint?: string;
   source?: string;
+  sourceContentId?: string;
   workout: Workout;
   createdAt?: string;
   updatedAt?: string;
@@ -136,6 +139,7 @@ export function createLibraryCourse(input: CreateLibraryCourseInput): LibraryCou
     tags: input.tags && input.tags.length > 0 ? [...new Set(input.tags)] : deriveTags(workout, input.category),
     weeklyKmHint: input.weeklyKmHint,
     source: input.source ?? "自定义",
+    sourceContentId: input.sourceContentId,
     workout,
     createdAt: input.createdAt ?? timestamp,
     updatedAt: input.updatedAt ?? timestamp,
@@ -189,6 +193,7 @@ export function cloneLibraryCourse(
     tags: overrides.tags ?? course.tags,
     weeklyKmHint: overrides.weeklyKmHint ?? course.weeklyKmHint,
     source: overrides.source ?? (course.origin === "builtin" ? `复制自《${course.source}》` : "复制自自定义课程"),
+    sourceContentId: course.sourceContentId,
     workout,
   });
 }
@@ -198,32 +203,40 @@ export function serializeLibraryCourse(course: LibraryCourse, options?: { versio
   return serializeWorkout(course.workout, options);
 }
 
+interface BuiltinSource {
+  source: string;
+  contentId?: string;
+}
+
 function builtin(
   id: string,
   category: LibraryCategory,
-  source: string,
+  source: string | BuiltinSource,
   dsl: string,
   weeklyKmHint?: string,
   tags?: DanielsZone[],
 ): LibraryCourse {
   const workout = parseWorkoutDsl(dsl);
+  const sourceLabel = typeof source === "string" ? source : source.source;
+  const sourceContentId = typeof source === "string" ? undefined : source.contentId;
   return {
     id,
     origin: "builtin",
     category,
     tags: tags ?? deriveTags(workout, category),
     weeklyKmHint,
-    source,
+    source: sourceLabel,
+    sourceContentId,
     workout,
   };
 }
 
-const LINKS = "《乳酸阈值跑》";
-const VO2 = "《最大摄氧量跑》";
-const REP = "《重复跑》";
-const MARATHON = "《马拉松配速跑》";
-const EASY = "《轻松跑》";
-const MIX = "《混合训练》";
+const LINKS: BuiltinSource = { source: "《乳酸阈值跑》", contentId: "training-types/threshold" };
+const VO2: BuiltinSource = { source: "《最大摄氧量跑》", contentId: "training-types/interval" };
+const REP: BuiltinSource = { source: "《重复跑》", contentId: "training-types/repetition" };
+const MARATHON: BuiltinSource = { source: "《马拉松配速跑》", contentId: "training-types/marathon" };
+const EASY: BuiltinSource = { source: "《轻松跑》", contentId: "training-types/easy" };
+const MIX: BuiltinSource = { source: "《混合训练》", contentId: "training-types/mixed" };
 
 /** 内置课程（来源 = 书内表格，全部按 Workout DSL v1 重写） */
 export const BUILTIN_COURSES: readonly LibraryCourse[] = [
@@ -331,7 +344,7 @@ export const BUILTIN_COURSES: readonly LibraryCourse[] = [
       "TITLE:I 强度金字塔",
       "GOAL:最大摄氧量",
       "WU:15min@E",
-      "MS:3x(3min@I+2min@jog)+4x(2min@I+90s@jog)+5x(60s@I+30s@jog)",
+      "MS:3x(3min@I+2min@jog)+4x(2min@I+1min@jog)+5x(60s@I+30s@jog)",
       "CD:10min@E",
     ].join("\n"),
     "周跑量 100km 左右",

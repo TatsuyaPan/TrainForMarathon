@@ -6,7 +6,11 @@
     </div>
 
     <t-card :bordered="true">
-      <MarkdownNodes :nodes="nodes" />
+      <MarkdownNodes :nodes="nodes">
+        <template #embed="{ embed }">
+          <ContentEmbed :embed="embed" />
+        </template>
+      </MarkdownNodes>
     </t-card>
 
     <div class="btn-row" style="margin-top: 16px">
@@ -17,9 +21,10 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from "vue";
-import { getContentById, getContentIndex, renderMarkdown } from "@core";
+import { ref, watch } from "vue";
+import { applyContentEmbeds, getContentById, getContentIndex, renderMarkdown } from "@core";
 import MarkdownNodes from "./MarkdownNodes.vue";
+import ContentEmbed from "../components/ContentEmbed.vue";
 
 const props = defineProps({ id: { type: String, required: true } });
 const loading = ref(true);
@@ -58,14 +63,17 @@ function goTo(contentId) {
   window.location.hash = `/course/${encodeURIComponent(contentId)}`;
 }
 
-onMounted(async () => {
+async function loadContent() {
+  loading.value = true;
   const content = await getContentById(props.id);
   doc.value = content;
   const idByPath = new Map(getContentIndex().map((entry) => [entry.path, entry.id]));
-  nodes.value = renderMarkdown(content.markdown, {
+  nodes.value = applyContentEmbeds(props.id, renderMarkdown(content.markdown, {
     resolveLink: (href) => contentLink(href, content.path, idByPath),
     resolveAsset: (raw) => assetUrl(raw, content.path),
-  });
+  }));
   loading.value = false;
-});
+}
+
+watch(() => props.id, loadContent, { immediate: true });
 </script>

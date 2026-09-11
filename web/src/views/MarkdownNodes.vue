@@ -35,6 +35,10 @@
       <pre v-else-if="node.type === 'code'" class="doc-code"><code>{{ node.text }}</code></pre>
 
       <hr v-else-if="node.type === 'hr'" />
+
+      <div v-else-if="node.type === 'embed'" class="doc-embed">
+        <slot name="embed" :embed="node" />
+      </div>
     </template>
   </div>
 </template>

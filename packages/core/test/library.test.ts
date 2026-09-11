@@ -27,7 +27,7 @@ describe("内置课程库", () => {
     for (const course of BUILTIN_COURSES) {
       expect(validateLibraryCourse(course)).toEqual([]);
       const dsl = serializeWorkout(course.workout);
-      expect(dsl).toContain("WORKOUT/1");
+      expect(dsl).toContain("WORKOUT/2");
       expect(parseWorkoutDsl(dsl)).toEqual(course.workout);
       const totals = workoutTotals(course.workout);
       expect(totals.knownDistanceMeters + totals.knownDurationSeconds).toBeGreaterThan(0);
@@ -41,6 +41,17 @@ describe("内置课程库", () => {
       expect(course.workout.title?.trim() || course.workout.goal.trim()).toBeTruthy();
       expect(course.source).toContain("《");
     }
+  });
+
+  it("内置课程带类型化出处，复制课程保留出处", () => {
+    expect(getLibraryCourse("t-20min")?.sourceContentId).toBe("training-types/threshold");
+    expect(getLibraryCourse("i-yasso-800")?.sourceContentId).toBe("training-types/interval");
+    expect(getLibraryCourse("r-400-x10")?.sourceContentId).toBe("training-types/repetition");
+    expect(getLibraryCourse("m-15km")?.sourceContentId).toBe("training-types/marathon");
+    expect(getLibraryCourse("e-40min")?.sourceContentId).toBe("training-types/easy");
+    expect(getLibraryCourse("mix-tir")?.sourceContentId).toBe("training-types/mixed");
+    const copy = cloneLibraryCourse(getLibraryCourse("i-yasso-800")!);
+    expect(copy.sourceContentId).toBe("training-types/interval");
   });
 
   it("按分类筛选与推荐", () => {
