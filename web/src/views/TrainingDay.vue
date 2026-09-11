@@ -71,7 +71,11 @@
           <span v-if="session.plannedWorkout" class="intensity-bar" :style="intensityBarStyle(session.plannedWorkout)"></span>
           <div v-if="session.plannedWorkout" class="plan-block">
             <strong>{{ session.plannedWorkout.goal || "训练计划" }}</strong>
-            <p>{{ describeWorkoutLines(session.plannedWorkout) }}</p>
+            <WorkoutDisplay :workout="session.plannedWorkout">
+              <template #before>
+                <p class="plan-lines">{{ describeWorkoutLines(session.plannedWorkout) }}</p>
+              </template>
+            </WorkoutDisplay>
           </div>
           <div v-else class="plan-block unstructured">
             <strong>临时训练</strong>
@@ -189,6 +193,8 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import {
   LIBRARY_CATEGORY_LABELS,
+  PHASE_LABELS,
+  PHASE_TAGS,
   PROGRESS_STATUS_LABELS,
   SESSION_STATUS_LABELS,
   addExtraSession,
@@ -209,6 +215,7 @@ import { usePaceDisplay } from "../composables/usePaceDisplay.js";
 import { listCustomCourses } from "../stores/course-library.js";
 import DayAdjustDialog from "../components/DayAdjustDialog.vue";
 import DisplayModeSwitch from "../components/DisplayModeSwitch.vue";
+import WorkoutDisplay from "../components/WorkoutDisplay.vue";
 
 const props = defineProps({ date: { type: String, required: true } });
 const router = useRouter();
@@ -295,10 +302,22 @@ function editSessionWorkout(session) {
 
 function describeWorkoutLines(workout) {
   try {
-    return describeWorkout(workout, plan.value.paces, {
+    const allLines = describeWorkout(workout, plan.value.paces, {
       includeGoal: false,
       targetMode: displayMode.value,
-    }).join("；");
+    });
+    let offset = 0;
+    const phaseGroups = [];
+    for (const phase of workout.phases) {
+      const count = phase.segments.length;
+      const phaseLines = allLines.slice(offset, offset + count);
+      offset += count;
+      if (phaseLines.length > 0) {
+        phaseGroups.push(`${PHASE_TAGS[phase.role]} ${PHASE_LABELS[phase.role]}`);
+        phaseGroups.push(...phaseLines);
+      }
+    }
+    return phaseGroups.length > 0 ? phaseGroups.join("\n") : "结构化训练内容";
   } catch {
     return "结构化训练内容";
   }
@@ -418,6 +437,7 @@ watch(() => props.date, async () => {
 .session-head h2 { margin: 3px 0 8px; font-size: 20px; color: #1d3024; }
 .plan-block { padding: 12px 0 2px; }
 .plan-block p { margin: 5px 0; color: #607066; font-size: 13px; line-height: 1.7; }
+.plan-lines { white-space: pre-line; }
 .plan-block.unstructured { color: #526058; }
 .record-strip { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 12px 0; padding: 11px 13px; border-radius: 10px; background: #edf5ef; color: #315540; font-size: 13px; }
 .record-strip p { flex-basis: 100%; margin: 2px 0 0; padding-top: 8px; border-top: 1px solid #d3e4d7; white-space: pre-wrap; }

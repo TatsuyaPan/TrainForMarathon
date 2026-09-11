@@ -25,50 +25,83 @@ function mountEditor(value = workout) {
   return mount(WorkoutEditor, { props: { workout: value }, attachTo: document.body });
 }
 
-describe("WorkoutEditor 键盘与焦点", () => {
+describe("WorkoutEditor 行内展开与焦点", () => {
   afterEach(() => {
     document.body.innerHTML = "";
   });
 
-  it("opens the focused editor with the keyboard and moves focus into it", async () => {
+  it("键盘打开行内编辑并把焦点移进去", async () => {
     const wrapper = mountEditor();
     const row = wrapper.get('[data-segment-path="0-0"]');
     row.element.focus();
 
     await row.trigger("keydown.enter");
     await nextTick();
+    await nextTick();
 
-    const panel = wrapper.get('[data-testid="focused-editor"]');
-    expect(panel.attributes("role")).toBe("dialog");
+    const panel = wrapper.get('[data-testid="inline-step-editor"]');
+    expect(panel.attributes("role")).toBe("region");
+    expect(panel.attributes("aria-expanded")).toBeUndefined();
     expect(document.activeElement).toBe(panel.element);
     wrapper.unmount();
   });
 
-  it("closes with Escape and returns focus to the originating step", async () => {
+  it("Escape 收起并把焦点还给原步骤", async () => {
     const wrapper = mountEditor();
     const row = wrapper.get('[data-segment-path="0-0"]');
     row.element.focus();
     await row.trigger("keydown.enter");
     await nextTick();
-
-    await wrapper.get('[data-testid="focused-editor"]').trigger("keydown.esc");
     await nextTick();
 
-    expect(wrapper.find('[data-testid="focused-editor"]').exists()).toBe(false);
+    await wrapper.get('[data-testid="inline-step-editor"]').trigger("keydown.esc");
+    await nextTick();
+
+    expect(wrapper.find('[data-testid="inline-step-editor"]').exists()).toBe(false);
     expect(document.activeElement).toBe(wrapper.get('[data-segment-path="0-0"]').element);
     wrapper.unmount();
   });
 
-  it("returns focus to the step after closing with the close button", async () => {
+  it("关闭按钮收起后焦点回到原步骤", async () => {
     const wrapper = mountEditor();
     const row = wrapper.get('[data-segment-path="0-0"]');
     await row.trigger("click");
+    await nextTick();
     await nextTick();
 
     await wrapper.get('[data-testid="step-editor"]').get("button[aria-label='关闭步骤编辑']").trigger("click");
     await nextTick();
 
     expect(document.activeElement).toBe(wrapper.get('[data-segment-path="0-0"]').element);
+    wrapper.unmount();
+  });
+
+  it("再点一次行就能收起（toggle）", async () => {
+    const wrapper = mountEditor();
+    const row = wrapper.get('[data-segment-path="0-0"]');
+    await row.trigger("click");
+    await nextTick();
+    await nextTick();
+    expect(wrapper.find('[data-testid="inline-step-editor"]').exists()).toBe(true);
+
+    await row.trigger("click");
+    await nextTick();
+    expect(wrapper.find('[data-testid="inline-step-editor"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("行内编辑字段变化通过 update 命令写回课表", async () => {
+    const wrapper = mountEditor();
+    const row = wrapper.get('[data-segment-path="0-0"]');
+    await row.trigger("click");
+    await nextTick();
+    await nextTick();
+
+    await wrapper.get('[data-testid="load-amount"]').setValue("45");
+    await nextTick();
+
+    const published = wrapper.emitted("update:workout").at(-1)[0];
+    expect(published.phases[0].segments[0].load.seconds).toBe(2700);
     wrapper.unmount();
   });
 
@@ -96,8 +129,7 @@ describe("WorkoutEditor 键盘与焦点", () => {
     await nextTick();
 
     expect(wrapper.emitted("update:workout")).toBeTruthy();
-    expect(wrapper.emitted("update:selectedPath")).toBeUndefined();
-    expect(wrapper.find('[data-testid="focused-editor"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="inline-step-editor"]').exists()).toBe(false);
     wrapper.unmount();
   });
 });

@@ -1,5 +1,5 @@
 <template>
-  <ul class="segment-list" :class="`depth-${Math.min(depth, 2)}`">
+  <ul ref="root" class="segment-list" :class="`depth-${Math.min(depth, 2)}`">
     <li v-for="(segment, index) in segments" :key="`${parentPath.join('-')}-${index}`" class="segment-item">
       <template v-if="segment.kind === 'repeat'">
         <div class="repeat-box" data-testid="editor-repeat">
@@ -28,6 +28,7 @@
               @keydown.space.prevent="emitSelect(index)"
             >
               循环设置
+              <span class="chevron" aria-hidden="true">{{ isSelected(index) ? "▾" : "▸" }}</span>
             </button>
             <span class="row-actions">
               <button type="button" title="上移" @click="emitCommand('up', index)">↑</button>
@@ -59,6 +60,24 @@
             </button>
           </div>
         </div>
+        <div
+          v-if="isSelected(index)"
+          class="segment-detail"
+          data-testid="inline-step-editor"
+          data-segment-detail
+          role="region"
+          tabindex="-1"
+          :aria-label="`步骤编辑：循环`"
+          @keydown.esc.stop.prevent="closeDetail(index)"
+        >
+          <CourseStepEditor
+            :segment="segment"
+            :role="phaseRole"
+            @update:segment="emitUpdate(index, $event)"
+            @remove="emitCommand('remove', index)"
+            @close="closeDetail(index)"
+          />
+        </div>
       </template>
 
       <template v-else>
@@ -78,6 +97,7 @@
             <span class="type">{{ typeLabel(segment) }}</span>
             <span class="load">{{ loadText(segment) }}</span>
             <span v-if="segment.kind === 'run'" class="target">{{ formatTargetShortLabel(segment.target) }}</span>
+            <span class="chevron" aria-hidden="true">{{ isSelected(index) ? "▾" : "▸" }}</span>
           </button>
           <span class="spacer" />
           <span class="row-actions">
@@ -97,13 +117,31 @@
             </select>
           </span>
         </div>
+        <div
+          v-if="isSelected(index)"
+          class="segment-detail"
+          data-testid="inline-step-editor"
+          data-segment-detail
+          role="region"
+          tabindex="-1"
+          :aria-label="`步骤编辑：${typeLabel(segment)}`"
+          @keydown.esc.stop.prevent="closeDetail(index)"
+        >
+          <CourseStepEditor
+            :segment="segment"
+            :role="phaseRole"
+            @update:segment="emitUpdate(index, $event)"
+            @remove="emitCommand('remove', index)"
+            @close="closeDetail(index)"
+          />
+        </div>
       </template>
     </li>
   </ul>
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import {
   MAX_REPEAT_DEPTH,
   formatDurationLabel,
@@ -113,6 +151,7 @@ import {
   formatTargetShortLabel,
   segmentColor,
 } from "@core";
+import CourseStepEditor from "./CourseStepEditor.vue";
 
 const props = defineProps({
   segments: { type: Array, default: () => [] },
@@ -123,6 +162,14 @@ const props = defineProps({
   phaseRole: { type: String, default: "main" },
 });
 const emit = defineEmits(["select", "command"]);
+
+const root = ref(null);
+
+/** 行内展开后把焦点移进编辑卡片；只有渲染了该卡片的列表实例能找到它 */
+watch(
+  () => props.selectedPath,
+  () => nextTick(() => root.value?.querySelector("[data-segment-detail]")?.focus()),
+);
 
 const otherRoles = computed(() => ["warmup", "main", "cooldown"]);
 /**
@@ -141,8 +188,22 @@ function pathKey(index) {
   return [...props.parentPath, index].join("-");
 }
 
+/** 已展开的行再点一次就收起（toggle），与 ▾/✕/Esc 三种收起方式并存 */
 function emitSelect(index) {
-  emit("select", [...props.parentPath, index]);
+  const path = [...props.parentPath, index];
+  emit("select", isSelected(index) ? null : path);
+}
+
+function emitUpdate(index, segment) {
+  emit("command", { type: "update", path: [...props.parentPath, index], segment });
+}
+
+/** 收起行内编辑并把焦点还给该步骤行，键盘与读屏用户不会丢失位置 */
+function closeDetail(index) {
+  emit("select", null);
+  nextTick(() => {
+    root.value?.querySelector(`[data-segment-path="${pathKey(index)}"]`)?.focus?.();
+  });
 }
 
 function typeLabel(segment) {
@@ -217,6 +278,15 @@ function changeRepetitions(index, event) {
 .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .type { font-weight: 600; }
 .load, .target { font-variant-numeric: tabular-nums; }
+.chevron { color: #8b93a1; font-size: 12px; margin-left: 2px; }
+.segment-detail {
+  margin-top: 6px;
+  border: 1px solid #b7cbbf;
+  border-radius: 10px;
+  background: #fbfdfb;
+  padding: 10px 12px;
+}
+.segment-detail:focus { outline: 2px solid #357a52; outline-offset: 2px; }
 .spacer { flex: 1; }
 .row-actions { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
 .row-actions button,

@@ -4,6 +4,12 @@
       <span class="category-chip" :style="{ background: categoryColor, borderColor: categoryColor }">{{ categoryLabel }}</span>
       <strong class="card-title">{{ presentation.title }}</strong>
       <span class="origin-chip">{{ course.origin === "builtin" ? "内置" : "自定义" }}</span>
+      <a
+        v-if="course.sourceContentId"
+        class="source-link"
+        :href="`#/course/${encodeURIComponent(course.sourceContentId)}`"
+        data-testid="course-source-link"
+      >{{ course.source }} →</a>
       <span v-if="course.weeklyKmHint" class="muted">{{ course.weeklyKmHint }}</span>
     </header>
 
@@ -15,68 +21,52 @@
       <span v-if="badges.length === 0" class="muted">暂无已知距离或时间</span>
     </p>
 
-    <StructurePreview
-      :blocks="presentation.preview.blocks"
-      :mixed-units="presentation.preview.mixedUnits"
-      :compressed="presentation.preview.compressed"
-    />
-
-    <div class="card-actions">
-      <t-button v-if="course.origin === 'builtin'" data-testid="copy-course" size="small" theme="primary" @click="$emit('copy', course)">
-        复制到我的课程
-      </t-button>
-      <template v-else>
-        <t-button data-testid="edit-course" size="small" theme="primary" @click="$emit('edit', course)">编辑</t-button>
-        <t-button data-testid="copy-course" size="small" variant="outline" @click="$emit('copy', course)">复制</t-button>
-        <t-button data-testid="delete-course" size="small" theme="danger" variant="outline" @click="$emit('delete', course)">删除</t-button>
-      </template>
-      <t-button data-testid="toggle-structure" size="small" variant="text" @click="structureOpen = !structureOpen">
-        {{ structureOpen ? "收起步骤" : "展开步骤" }}
-      </t-button>
-      <t-button data-testid="toggle-dsl" size="small" variant="text" @click="dslOpen = !dslOpen">
-        {{ dslOpen ? "收起 DSL" : "查看 DSL" }}
-      </t-button>
-    </div>
-
-    <section v-if="structureOpen" class="card-section" data-testid="course-structure">
-      <div v-for="phase in presentation.phases" :key="phase.role" class="phase-block">
-        <div class="phase-head">
-          <span class="phase-tag">{{ phase.tag }}</span>
-          <strong>{{ phase.label }}</strong>
-          <span class="muted">{{ phase.summary }}</span>
+    <WorkoutDisplay :workout="course.workout">
+      <template #after>
+        <div class="card-actions">
+          <t-button v-if="course.origin === 'builtin'" data-testid="copy-course" size="small" theme="primary" @click="$emit('copy', course)">
+            复制到我的课程
+          </t-button>
+          <template v-else>
+            <t-button data-testid="edit-course" size="small" theme="primary" @click="$emit('edit', course)">编辑</t-button>
+            <t-button data-testid="copy-course" size="small" variant="outline" @click="$emit('copy', course)">复制</t-button>
+            <t-button data-testid="delete-course" size="small" theme="danger" variant="outline" @click="$emit('delete', course)">删除</t-button>
+          </template>
+          <t-button data-testid="toggle-dsl" size="small" variant="text" @click="dslOpen = !dslOpen">
+            {{ dslOpen ? "收起 DSL" : "查看 DSL" }}
+          </t-button>
         </div>
-        <WorkoutStructure :nodes="phase.nodes" />
-      </div>
-    </section>
 
-    <section v-if="dslOpen" class="card-section">
-      <div class="dsl-flavors">
-        <template v-if="hasIntensity">
-          <span class="muted">写法</span>
-          <div class="flavor-group" role="group" aria-label="DSL 写法">
-            <button
-              v-for="option in FLAVORS"
-              :key="option.value"
-              type="button"
-              class="flavor-option"
-              :class="{ active: flavor === option.value }"
-              :aria-pressed="flavor === option.value"
-              :data-testid="`dsl-flavor-${option.value}`"
-              @click="setFlavor(option.value)"
-            >
-              {{ option.label }}
-            </button>
+        <section v-if="dslOpen" class="card-section">
+          <div class="dsl-flavors">
+            <template v-if="hasIntensity">
+              <span class="muted">写法</span>
+              <div class="flavor-group" role="group" aria-label="DSL 写法">
+                <button
+                  v-for="option in FLAVORS"
+                  :key="option.value"
+                  type="button"
+                  class="flavor-option"
+                  :class="{ active: flavor === option.value }"
+                  :aria-pressed="flavor === option.value"
+                  :data-testid="`dsl-flavor-${option.value}`"
+                  @click="setFlavor(option.value)"
+                >
+                  {{ option.label }}
+                </button>
+              </div>
+              <span class="muted flavor-hint">{{ flavorHint }}</span>
+            </template>
+            <span v-else class="muted flavor-hint" data-testid="dsl-single-flavor">{{ singleFlavorHint }}</span>
           </div>
-          <span class="muted flavor-hint">{{ flavorHint }}</span>
-        </template>
-        <span v-else class="muted flavor-hint" data-testid="dsl-single-flavor">{{ singleFlavorHint }}</span>
-      </div>
-      <div class="dsl-block">
-        <pre data-testid="course-dsl">{{ dsl }}</pre>
-        <t-button size="small" variant="outline" data-testid="copy-dsl" @click="copyDsl">复制 DSL</t-button>
-      </div>
-      <p v-if="copyHint" class="muted">{{ copyHint }}</p>
-    </section>
+          <div class="dsl-block">
+            <pre data-testid="course-dsl">{{ dsl }}</pre>
+            <t-button size="small" variant="outline" data-testid="copy-dsl" @click="copyDsl">复制 DSL</t-button>
+          </div>
+          <p v-if="copyHint" class="muted">{{ copyHint }}</p>
+        </section>
+      </template>
+    </WorkoutDisplay>
   </article>
 </template>
 
@@ -89,8 +79,7 @@ import {
   serializeWorkout,
   workoutZones,
 } from "@core";
-import StructurePreview from "./StructurePreview.vue";
-import WorkoutStructure from "./WorkoutStructure.vue";
+import WorkoutDisplay from "./WorkoutDisplay.vue";
 import { usePaceDisplay } from "../composables/usePaceDisplay.js";
 
 const props = defineProps({
@@ -98,7 +87,6 @@ const props = defineProps({
 });
 defineEmits(["edit", "copy", "delete"]);
 
-const structureOpen = ref(false);
 const dslOpen = ref(false);
 const copyHint = ref("");
 
@@ -195,6 +183,8 @@ function setFlavor(next) {
   border-radius: 999px;
   padding: 1px 8px;
 }
+.source-link { font-size: 12px; color: #357a52; text-decoration: none; }
+.source-link:hover { text-decoration: underline; }
 .card-goal { margin: 0; font-weight: 600; }
 .card-note { margin: 0; }
 .card-metrics { display: flex; gap: 6px; flex-wrap: wrap; margin: 0; }
@@ -207,16 +197,6 @@ function setFlavor(next) {
 }
 .card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .card-section { display: grid; gap: 10px; }
-.phase-block { display: grid; gap: 6px; }
-.phase-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.phase-tag {
-  font-size: 12px;
-  font-weight: 700;
-  color: #357a52;
-  background: #e8f1ea;
-  border-radius: 6px;
-  padding: 1px 7px;
-}
 .dsl-block { display: grid; gap: 8px; }
 .dsl-flavors { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .flavor-group {

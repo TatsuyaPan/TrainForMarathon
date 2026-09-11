@@ -14,7 +14,7 @@
         <span>循环备注</span>
         <input data-testid="note" type="text" :value="segment.note ?? ''" placeholder="可选" @input="setNote" />
       </label>
-      <p class="muted">循环内的步骤在左侧结构树中编辑；支持继续嵌套循环。</p>
+      <p class="muted">循环内的步骤在上方结构树中编辑；支持继续嵌套循环。</p>
     </template>
 
     <template v-else>

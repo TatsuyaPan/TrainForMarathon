@@ -55,6 +55,28 @@ export const PHASE_LABELS: Record<WorkoutPhaseRole, string> = {
   cooldown: "冷身",
 };
 
+/**
+ * 阶段配色（结构预览分栏、步骤区域阶段分区共用）。
+ * 语义：热身=轻松开始（绿）、主训练=活力（琥珀金）、冷身=放松休息（蓝）；
+ * 三色都不与 Daniels 强度色冲突，阶段与强度的视觉身份彼此独立。
+ */
+export interface PhaseColorTheme {
+  /** 分区边框 */
+  border: string;
+  /** 分区背景底色 */
+  background: string;
+  /** 标签文字 */
+  text: string;
+  /** 标签 pill 底色 */
+  chip: string;
+}
+
+export const PHASE_COLORS: Record<WorkoutPhaseRole, PhaseColorTheme> = {
+  warmup: { border: "#bfd9c7", background: "#f2f8f3", text: "#357a52", chip: "#e8f1ea" },
+  main: { border: "#e8c06a", background: "#fdf6e8", text: "#8b5a1f", chip: "#f8ecd2" },
+  cooldown: { border: "#bcd0e4", background: "#f2f6fa", text: "#3f6d94", chip: "#e6edf5" },
+};
+
 export const RUN_ROLE_LABELS: Record<WorkoutPhaseRole, string> = {
   warmup: "热身跑步",
   main: "主训练跑步",

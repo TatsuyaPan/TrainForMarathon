@@ -4,11 +4,12 @@
       v-for="(phase, phaseIndex) in workout.phases"
       :key="phase.role"
       class="phase-editor"
+      :class="`phase-editor-${phase.role}`"
+      :style="phaseStyle(phase.role)"
       :data-testid="`phase-editor-${PHASE_TAGS[phase.role]}`"
     >
       <header class="phase-editor-head">
-        <span class="phase-tag">{{ PHASE_TAGS[phase.role] }}</span>
-        <strong>{{ PHASE_LABELS[phase.role] }}</strong>
+        <span class="phase-tag" :style="tagStyle(phase.role)">{{ PHASE_TAGS[phase.role] }} {{ PHASE_LABELS[phase.role] }}</span>
         <span class="muted">{{ phaseSummary(phase.role) }}</span>
         <span class="spacer" />
         <button
@@ -27,7 +28,7 @@
         :parent-path="[phaseIndex]"
         :selected-path="selectedPath"
         :phase-role="phase.role"
-        @select="$emit('update:selectedPath', $event)"
+        @select="selectedPath = $event"
         @command="onCommand"
       />
 
@@ -55,8 +56,9 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import {
+  PHASE_COLORS,
   PHASE_LABELS,
   PHASE_TAGS,
   addPhase,
@@ -71,16 +73,30 @@ import {
   removeSegment,
   replaceSegment,
   segmentAt,
+  stripUndefinedFields,
 } from "@core";
 import CourseSegmentList from "./CourseSegmentList.vue";
 
 const props = defineProps({
   workout: { type: Object, required: true },
-  selectedPath: { type: Array, default: null },
 });
-const emit = defineEmits(["update:workout", "update:selectedPath", "error"]);
+const emit = defineEmits(["update:workout", "error"]);
+
+/** 当前行内展开编辑的步骤路径；null 表示全部收起 */
+const selectedPath = ref(null);
 
 const presentation = computed(() => createWorkoutPresentation(props.workout));
+
+/** 阶段分区配色：热身绿 / 主训练琥珀金 / 冷身蓝，与课程展示组件同一套 PHASE_COLORS */
+function phaseStyle(role) {
+  const colors = PHASE_COLORS[role];
+  return { borderColor: colors.border, background: colors.background };
+}
+
+function tagStyle(role) {
+  const colors = PHASE_COLORS[role];
+  return { color: colors.text, background: colors.chip };
+}
 
 function phaseSummary(role) {
   return presentation.value.phases.find((phase) => phase.role === role)?.summary ?? "";
@@ -123,7 +139,7 @@ function createPhase(role) {
 
 function deletePhase(role) {
   publish(removePhase(props.workout, role));
-  emit("update:selectedPath", null);
+  selectedPath.value = null;
 }
 
 function onCommand(command) {
@@ -141,18 +157,22 @@ function onCommand(command) {
         );
         break;
       }
+      case "update":
+        // 行内编辑卡片的字段变化：清理切换类型后留下的 undefined 键再写回
+        publish(replaceSegment(props.workout, command.path, stripUndefinedFields(command.segment)));
+        break;
       case "remove":
         publish(removeSegment(props.workout, command.path));
-        emit("update:selectedPath", null);
+        selectedPath.value = null;
         break;
       case "duplicate":
         publish(duplicateSegment(props.workout, command.path));
         break;
       case "up":
-        publish(moveSegment(props.workout, command.path, -1));
-        break;
       case "down":
-        publish(moveSegment(props.workout, command.path, 1));
+        publish(moveSegment(props.workout, command.path, command.type === "up" ? -1 : 1));
+        // 移动后原路径指向别的步骤，行内编辑收起避免编辑错对象
+        selectedPath.value = null;
         break;
       case "repeat-count":
         publish(replaceSegment(props.workout, command.path, { ...segmentAt(props.workout, command.path), repetitions: command.repetitions }));
@@ -173,7 +193,7 @@ function moveToRole(path, role) {
   if (targetIndex < 0) return;
   const target = props.workout.phases[targetIndex];
   publish(moveSegmentTo(props.workout, path, [targetIndex], target.segments.length));
-  emit("update:selectedPath", null);
+  selectedPath.value = null;
 }
 </script>
 
